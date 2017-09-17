@@ -9,6 +9,62 @@ output: html_notebook
 library(ggplot2)
 library(dplyr)
 library(tidyr)
+library(data.table)
+library(knitr)
+```
+
+```{r}
+setwd("D:/Kaggle/House Prices Advanced Regression Techniques")
+```
+
+```{r}
+train <- fread("train.csv", stringsAsFactors = TRUE)
+test <- fread("test.csv", stringsAsFactors = TRUE)
+```
+
+```{r}
+kable(head(train))
+```
+
+```{r}
+# Converting subclass to factor
+train$MSSubClass = as.factor(train$MSSubClass)
+```
+
+```{r}
+# Visualizing sale price vs MsSubClass
+ggplot(train, aes(x = MSSubClass, y = SalePrice)) +
+  geom_boxplot()
+```
+
+```{r}
+# visualize number of observation for each category
+ggplot(train, aes(x = MSSubClass, fill = MSSubClass)) +
+  geom_bar()
+```
+
+```{r}
+# visualize number of observation for each category
+ggplot(train, aes(x = MSZoning)) +
+  geom_bar()
+```
+
+```{r}
+# Visualizing sale price vs MsSubClass
+ggplot(train, aes(x = MSZoning, y = SalePrice)) +
+  geom_boxplot()
+```
+
+```{r}
+ggplot(train, aes(x = LotFrontage)) +
+  geom_histogram(binwidth = 10)
+```
+
+```{r}
+# Visualizing sale price vs LotFrontage
+ggplot(train, aes(x = LotFrontage, y = SalePrice)) +
+  geom_point() +
+  geom_smooth(method = "lm")
 ```
 
 Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Ctrl+Alt+I*.
