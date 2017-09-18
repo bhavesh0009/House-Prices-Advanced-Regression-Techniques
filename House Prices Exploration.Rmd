@@ -138,6 +138,117 @@ ggplot(train, aes(x = LotShape, y = psf, fill = LotShape)) +
   geom_boxplot()
 ```
 
+```{r}
+train %>%
+  group_by(LandContour) %>%
+  summarise(count = n(),
+            avg = mean(psf))
+```
+
+```{r}
+train %>%
+  group_by(Utilities) %>%
+  summarise(count = n(),
+            avg = mean(psf)) %>%
+  arrange(desc(count), desc(avg))
+# Conclusion : We can ignore this variable.
+```
+
+```{r}
+train %>%
+  group_by(LotConfig) %>%
+  summarise(count = n(),
+            avg = mean(psf)) %>%
+  arrange(desc(count), desc(avg))
+# Conclusion : Hmmm...
+```
+
+```{r}
+train %>%
+  group_by(LandSlope) %>%
+  summarise(count = n(),
+            avg = mean(psf)) %>%
+  arrange(desc(count), desc(avg))
+# Conclusion : Nice One!! Speically we can penalize Sev slopes
+```
+
+```{r}
+train %>%
+  group_by(Neighborhood) %>%
+  summarise(count = n(),
+            avg = mean(psf)) %>%
+  arrange(desc(count), desc(avg))
+```
+
+```{r}
+ggplot(train, aes(x = Neighborhood, y = psf, fill = Neighborhood)) +
+  geom_boxplot() +
+  coord_flip() +
+  theme(legend.position = "none")
+# Conclustion : Definetely a differentiator
+```
+
+```{r}
+train %>%
+  group_by(Condition1) %>%
+  summarise(count = n(),
+            avg = mean(psf)) %>%
+  arrange(desc(avg), desc(count))
+# Conclustion : People don't like building adjacent to rail roads or streets.
+```
+
+```{r}
+train %>%
+  group_by(Condition2) %>%
+  summarise(count = n(),
+            avg = mean(psf)) %>%
+  arrange(desc(avg), desc(count))
+# Need to mix it with condition 1 to get better result
+```
+
+```{r}
+train %>%
+  group_by(BldgType) %>%
+  summarise(count = n(),
+            avg = mean(psf)) %>%
+  arrange(desc(avg), desc(count)) 
+# Conclusion : Superb Feature
+```
+
+```{r}
+train %>%
+  group_by(HouseStyle) %>%
+  summarise(count = n(),
+            avg = mean(psf)) %>%
+  arrange(desc(avg), desc(count)) 
+```
+
+```{r}
+ggplot(train, aes(x = HouseStyle, y = psf, fill = HouseStyle)) +
+  geom_boxplot() +
+  theme(legend.position = "none")
+# Conclusion : 2 story getting premium prize
+```
+
+```{r}
+train$OverallQual = as.factor(train$OverallQual)
+train %>%
+  group_by(OverallQual) %>%
+  summarise(count = n(),
+            avg = mean(psf)) %>%
+  arrange(desc(avg), desc(count)) 
+```
+
+```{r}
+train %>%
+  group_by(OverallQual) %>%
+  summarise(count = n(),
+            avg = mean(psf)) %>%
+  ggplot(aes(x = OverallQual, y = count, fill = OverallQual)) +
+    geom_bar(stat = "identity") +
+    theme(legend.position = "none")
+```
+
 
 
 
