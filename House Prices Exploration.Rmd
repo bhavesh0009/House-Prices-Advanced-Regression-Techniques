@@ -126,7 +126,16 @@ ggplot(train, aes(x = Alley, y = psf, fill = Alley)) +
 ```
 
 ```{r}
+train %>%
+  group_by(LotShape) %>%
+  summarise(count = n(),
+            avg = mean(psf))
+```
 
+```{r}
+# IR3 should have least prize, Reg highest in my opinion. Let's check
+ggplot(train, aes(x = LotShape, y = psf, fill = LotShape)) +
+  geom_boxplot()
 ```
 
 
