@@ -3,14 +3,13 @@ title: "Kaggle House prize prediction"
 output: html_notebook
 ---
 
-
-
 ```{r}
 library(ggplot2)
 library(dplyr)
 library(tidyr)
 library(data.table)
 library(knitr)
+require(cowplot)
 ```
 
 ```{r}
@@ -24,6 +23,23 @@ test <- fread("test.csv", stringsAsFactors = TRUE)
 
 ```{r}
 kable(head(train))
+```
+
+```{r}
+train_nulls <- as.data.frame(colSums(is.na(train)))#as.data.frame(sapply(X = train, FUN = function(x) sum(is.na(x))))
+train_nulls <- add_rownames(train_nulls, "Column")
+colnames(train_nulls)[2] <- "nulls"
+train_nulls$notNulls = nrow(train) - train_nulls$nulls
+```
+
+```{r}
+train_nulls %>%
+  filter(nulls > 0) %>%
+  gather("null_flag", "count", -Column) %>%
+  ggplot(aes(x = Column, y = count, fill = null_flag)) +
+  geom_bar(stat = "identity",position = "fill") +
+  theme(legend.position = "bottom") +
+  coord_flip()
 ```
 
 ```{r}
@@ -56,16 +72,66 @@ ggplot(train, aes(x = MSZoning, y = SalePrice)) +
 ```
 
 ```{r}
-ggplot(train, aes(x = LotFrontage)) +
-  geom_histogram(binwidth = 10)
-```
 
-```{r}
+plot1 <- ggplot(train, aes(x = LotFrontage)) +
+            geom_histogram(binwidth = 10) 
+
 # Visualizing sale price vs LotFrontage
-ggplot(train, aes(x = LotFrontage, y = SalePrice)) +
+plot2 <- ggplot(train, aes(x = LotFrontage, y = SalePrice)) +
+          geom_point() +
+          geom_smooth(method = "lm") 
+
+plot_grid(plot1, plot2, align='h')
+
+```
+```{r}
+ggplot(train, aes(x =log( LotArea), y = SalePrice)) +
   geom_point() +
   geom_smooth(method = "lm")
 ```
+
+```{r}
+# Strong relation ship between lot area and sale price
+# Creating new feature for prize per square feet
+train$psf <- train$SalePrice / train$LotArea
+```
+
+```{r}
+train %>%
+  group_by(Street) %>%
+  summarise(count = n())
+```
+
+```{r}
+# Too less values for Grvl. We can ignore that, but Let's first check box-plot if gravel can explain outliers?
+ggplot(train, aes(x = Street, y = psf)) +
+  geom_violin(fill = "red")
+```
+
+```{r}
+train %>%
+  group_by(Alley) %>%
+  summarise(count = n())
+```
+
+```{r}
+# Too many null values , but here NA means no alley access, can be good feature. Let's change value for that.
+train[is.na(Alley)]$Alley = "No"
+```
+
+```{r}
+# Too less values for Grvl. We can ignore that, but Let's first check box-plot if gravel can explain outliers?
+ggplot(train, aes(x = Alley, y = psf, fill = Alley)) +
+  geom_boxplot()
+```
+
+```{r}
+
+```
+
+
+
+
 
 Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Ctrl+Alt+I*.
 
