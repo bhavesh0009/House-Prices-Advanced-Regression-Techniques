@@ -332,6 +332,26 @@ train %>%
 ```
 
 ```{r}
+#RoofStyle: Type of roof
+train %>%
+  group_by(RoofStyle) %>%
+  summarise(count = n(),
+            avg = mean(psf),
+            median = median(psf))
+# Conclusion : Pass. Nothing to differentiate between top 2 values
+```
+
+```{r}
+#RoofMatl: Roof material
+train %>%
+  group_by(RoofMatl) %>%
+  summarise(count = n(),
+            avg = mean(psf),
+            median = median(psf))
+#Conclusion : Again most of the values belong to one category only 
+```
+
+```{r}
 
 ```
 
