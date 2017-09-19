@@ -56,7 +56,8 @@ ggplot(train, aes(x = MSSubClass, y = SalePrice)) +
 ```{r}
 # visualize number of observation for each category
 ggplot(train, aes(x = MSSubClass, fill = MSSubClass)) +
-  geom_bar()
+  geom_bar() +
+  theme(legend.position =  "none")
 ```
 
 ```{r}
@@ -247,6 +248,91 @@ train %>%
   ggplot(aes(x = OverallQual, y = count, fill = OverallQual)) +
     geom_bar(stat = "identity") +
     theme(legend.position = "none")
+```
+
+```{r}
+train %>%
+  ggplot(aes(x = OverallQual, y = psf, fill = OverallQual)) +
+    geom_boxplot() +
+    theme(legend.position = "none")
+# Definetly a decider. Possibaly most important feature
+```
+
+```{r}
+train$OverallCond = as.factor(train$OverallCond)
+train %>%
+  group_by(OverallCond) %>%
+  summarise(count = n(),
+            avg = mean(psf)) %>%
+  arrange(desc(avg), desc(count)) 
+```
+
+```{r}
+train$OverallCond = as.factor(train$OverallCond)
+train %>%
+  ggplot(aes(x = OverallCond, y = psf, fill = OverallCond)) +
+    geom_boxplot() +
+    theme(legend.position = "none")
+#Conclusion : Not quite impressive.
+```
+
+```{r}
+# Again interesting feature : YearBuilt: Original construction date
+train %>%
+  ggplot(aes(x = YearBuilt)) +
+  geom_histogram(binwidth = 5)
+```
+
+```{r}
+max(train$YearBuilt)
+```
+
+```{r}
+train %>%
+  ggplot(aes(x = YearBuilt, y = psf)) +
+    geom_jitter(color = "red", alpha = 0.3)
+#Conclusion : Definetly latest home taking more prize. We can define new continous variable HouseAge
+```
+
+```{r}
+# YearRemodAdd: Remodel date (same as construction date if no remodeling or additions)
+# So let's first find out house is remodeled or not
+train %>%
+  mutate(remodel_flag = ifelse(YearBuilt == YearRemodAdd, "N", "Y")) %>%
+  group_by(remodel_flag) %>%
+  summarise(count = n(),
+            avg = mean(psf),
+            median = median(psf))
+
+```
+
+```{r}
+train %>%
+  mutate(remodel_flag = ifelse(YearBuilt == YearRemodAdd, "N", "Y")) %>%
+  ggplot(aes(x = remodel_flag, y = psf, fill = remodel_flag)) +
+  geom_boxplot()
+```
+
+```{r}
+train %>%
+  mutate(remodel_flag = ifelse(YearBuilt == YearRemodAdd, "N", "Y")) %>%
+  filter(remodel_flag == "Y") %>%
+  ggplot(aes(x = YearRemodAdd, y = psf)) +
+  geom_jitter(color = "red", alpha = 0.3)
+```
+
+```{r}
+train %>%
+  mutate(remodel_flag = ifelse(YearBuilt == YearRemodAdd, "N", "Y")) %>%
+  filter(remodel_flag == "Y") %>%
+  ggplot(aes(x = YearRemodAdd, y = psf, fill = YearBuilt)) +
+    geom_bar(stat = "identity")
+# Conclusion : What happended in 1950?
+
+```
+
+```{r}
+
 ```
 
 
