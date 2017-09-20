@@ -448,6 +448,26 @@ ggplot(train, aes(x = ExterCond, y = psf, fill =  ExterCond)) +
 # Conclusion : Nope.
 ```
 
+```{r}
+# Foundation: Type of foundation
+train %>%
+  group_by(Foundation) %>%
+  summarise(count = n(),
+            avg = mean(psf),
+            median = median(psf))
+```
+
+```{r}
+ggplot(train, aes(x = Foundation, y = psf, fill =  Foundation)) +
+  geom_boxplot() +
+  theme(legend.position = "none")
+# Conclusion : Nice One! Clear distinction between top 2 values
+```
+
+```{r}
+
+```
+
 
 
 
