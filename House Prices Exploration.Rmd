@@ -699,6 +699,62 @@ train %>%
 ```
 
 ```{r}
+# BsmtFullBath: Basement full bathrooms
+ggplot(train, aes(x = as.factor(BsmtFullBath), y = psf, fill =  as.factor(BsmtFullBath))) +
+  geom_boxplot() +
+  theme(legend.position = "none")
+```
+
+```{r}
+train %>%
+  group_by(BsmtFullBath) %>%
+  summarise(count = n(),
+            avg = mean(psf),
+            median = median(psf))
+```
+
+```{r}
+# BsmtHalfBath: Basement half bathrooms
+train %>%
+  group_by(BsmtHalfBath) %>%
+  summarise(count = n(),
+            avg = mean(psf),
+            median = median(psf))
+# Conclusion : pass
+```
+
+```{r}
+# FullBath: Full bathrooms above grade
+train %>%
+  group_by(FullBath) %>%
+  summarise(count = n(),
+            avg = mean(psf),
+            median = median(psf))
+```
+
+```{r}
+ggplot(train, aes(x = as.factor(FullBath), y = psf, fill =  as.factor(FullBath))) +
+  geom_boxplot() +
+  theme(legend.position = "none")
+# Conclusion : Nice one. But do we have total number of bath?
+```
+
+```{r}
+# HalfBath: Half baths above grade
+train %>%
+  group_by(HalfBath) %>%
+  summarise(count = n(),
+            avg = mean(psf),
+            median = median(psf))
+```
+
+```{r}
+ggplot(train, aes(x = as.factor(HalfBath), y = psf, fill =  as.factor(HalfBath))) +
+  geom_boxplot() +
+  theme(legend.position = "none")
+```
+
+```{r}
 
 ```
 
