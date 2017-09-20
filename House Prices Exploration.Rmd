@@ -536,6 +536,34 @@ train %>%
 # Conclustion : Not good feature
 ```
 
+```{r}
+# Conclusion : BsmtFinType2: Rating of basement finished area (if multiple types)
+train %>%
+  group_by(BsmtFinType2) %>%
+  summarise(count = n(),
+            avg = mean(psf),
+            median = median(psf))
+# Conclusion : Not so good
+```
+
+```{r}
+# BsmtFinSF2: Type 2 finished square feet
+train %>%
+  ggplot(aes(x = BsmtFinSF2, y = psf)) +
+  geom_jitter(color = "red", alpha = 0.3) +
+  geom_smooth(methold = "lm")
+
+```
+
+```{r}
+train %>%
+  mutate(bsmt2Flag = ifelse(BsmtFinSF2 == 0, "N", "Y")) %>%
+  ggplot(aes(x = bsmt2Flag, y = psf, fill = bsmt2Flag)) +
+  geom_boxplot() +
+  theme(legend.position = "none")
+# Conclusion : most of values are 0. and no co-relation for non zero values
+```
+
 
 
 
