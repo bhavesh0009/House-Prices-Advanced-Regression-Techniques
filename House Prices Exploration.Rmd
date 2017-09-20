@@ -755,7 +755,18 @@ ggplot(train, aes(x = as.factor(HalfBath), y = psf, fill =  as.factor(HalfBath))
 ```
 
 ```{r}
+# Bedroom: Bedrooms above grade (does NOT include basement bedrooms)
+train %>%
+  group_by(BedroomAbvGr) %>%
+  summarise(count = n(),
+            avg = mean(psf),
+            median = median(psf))
+```
 
+```{r}
+ggplot(train, aes(x = as.factor(BedroomAbvGr), y = psf, fill =  as.factor(BedroomAbvGr))) +
+  geom_boxplot() +
+  theme(legend.position = "none")
 ```
 
 
