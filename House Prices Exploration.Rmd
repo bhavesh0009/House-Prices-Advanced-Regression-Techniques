@@ -290,7 +290,8 @@ max(train$YearBuilt)
 ```{r}
 train %>%
   ggplot(aes(x = YearBuilt, y = psf)) +
-    geom_jitter(color = "red", alpha = 0.3)
+    geom_jitter(color = "red", alpha = 0.3) +
+    geom_smooth(method = "lm")
 #Conclusion : Definetly latest home taking more prize. We can define new continous variable HouseAge
 ```
 
@@ -318,7 +319,8 @@ train %>%
   mutate(remodel_flag = ifelse(YearBuilt == YearRemodAdd, "N", "Y")) %>%
   filter(remodel_flag == "Y") %>%
   ggplot(aes(x = YearRemodAdd, y = psf)) +
-  geom_jitter(color = "red", alpha = 0.3)
+  geom_jitter(color = "red", alpha = 0.3) +
+  geom_smooth(method = "lm")
 ```
 
 ```{r}
@@ -412,7 +414,7 @@ train %>%
 train %>%
   ggplot(aes(x = MasVnrArea, y = psf)) +
   geom_jitter(color = "red", alpha = 0.3) +
-  geom_smooth(methold = "lm")
+  geom_smooth(method = "lm")
 # Conclusion : most of the value are 0
 ```
 
@@ -532,7 +534,7 @@ ggplot(train, aes(x = BsmtFinSF1)) +
 train %>%
   ggplot(aes(x = BsmtFinSF1, y = psf)) +
   geom_jitter(color = "red", alpha = 0.3) +
-  geom_smooth(methold = "lm")
+  geom_smooth(method = "lm")
 # Conclustion : Not good feature
 ```
 
@@ -551,7 +553,7 @@ train %>%
 train %>%
   ggplot(aes(x = BsmtFinSF2, y = psf)) +
   geom_jitter(color = "red", alpha = 0.3) +
-  geom_smooth(methold = "lm")
+  geom_smooth(method = "lm")
 
 ```
 
@@ -574,7 +576,7 @@ ggplot(train, aes(x = BsmtUnfSF)) +
 train %>%
   ggplot(aes(x = BsmtUnfSF, y = psf)) +
   geom_point(color = "red", alpha = 0.3) +
-  geom_smooth(methold = "lm")
+  geom_smooth(method = "lm")
 ```
 
 ```{r}
@@ -643,8 +645,25 @@ ggplot(train, aes(x = Electrical, y = psf, fill =  Electrical)) +
 
 ```{r}
 train %>%
-  select(LotArea, contains("SF"), -psf) %>%
+  select(LotArea, contains("SF"), psf) %>%
   head(10)
+```
+
+```{r}
+# 1stFlrSF: First Floor square feet
+ggplot(train, aes(x = `1stFlrSF`)) +
+  geom_histogram(alpha = 0.5, fill = "red")  
+```
+
+```{r}
+train %>%
+  ggplot(aes(x = `1stFlrSF`, y = psf)) +
+  geom_point(color = "red", alpha = 0.3) +
+  geom_smooth(method = "lm")
+```
+
+```{r}
+
 ```
 
 
