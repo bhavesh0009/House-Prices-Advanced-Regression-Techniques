@@ -411,7 +411,41 @@ train %>%
 ```{r}
 train %>%
   ggplot(aes(x = MasVnrArea, y = psf)) +
-  geom_jitter(color = "red", alpha = 0.3)
+  geom_jitter(color = "red", alpha = 0.3) +
+  geom_smooth(methold = "lm")
+# Conclusion : most of the value are 0
+```
+
+```{r}
+# ExterQual: Evaluates the quality of the material on the exterior 
+train %>%
+  group_by(ExterQual) %>%
+  summarise(count = n(),
+            avg = mean(psf),
+            median = median(psf))
+```
+
+```{r}
+ggplot(train, aes(x = ExterQual, y = psf, fill =  ExterQual)) +
+  geom_boxplot() +
+  theme(legend.position = "none")
+# Conclusion : Excellent feature. Clear distinction between top 2 values - Good and Average
+```
+
+```{r}
+# ExterCond: Evaluates the present condition of the material on the exterior
+train %>%
+  group_by(ExterCond) %>%
+  summarise(count = n(),
+            avg = mean(psf),
+            median = median(psf))
+```
+
+```{r}
+ggplot(train, aes(x = ExterCond, y = psf, fill =  ExterCond)) +
+  geom_boxplot() +
+  theme(legend.position = "none")
+# Conclusion : Nope.
 ```
 
 
