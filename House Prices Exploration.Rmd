@@ -465,6 +465,33 @@ ggplot(train, aes(x = Foundation, y = psf, fill =  Foundation)) +
 ```
 
 ```{r}
+# BsmtQual: Evaluates the height of the basement
+train %>%
+  group_by(BsmtQual) %>%
+  summarise(count = n(),
+            avg = mean(psf),
+            median = median(psf))
+```
+
+```{r}
+ggplot(train, aes(x = BsmtQual, y = psf, fill =  BsmtQual)) +
+  geom_boxplot() +
+  theme(legend.position = "none")
+# Conclusion : Again superb picture. Nice distinction between top 3 values 
+```
+
+```{r}
+# BsmtCond: Evaluates the general condition of the basement
+train %>%
+  group_by(BsmtCond) %>%
+  summarise(count = n(),
+            avg = mean(psf),
+            median = median(psf))
+# Conclusion : Not of my liking ..Leave it
+```
+
+```{r}
+# BsmtExposure: Refers to walkout or garden level walls
 
 ```
 
