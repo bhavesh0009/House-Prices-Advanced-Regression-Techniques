@@ -564,6 +564,89 @@ train %>%
 # Conclusion : most of values are 0. and no co-relation for non zero values
 ```
 
+```{r}
+# BsmtUnfSF: Unfinished square feet of basement area
+ggplot(train, aes(x = BsmtUnfSF)) +
+  geom_histogram(alpha = 0.5, fill = "red") 
+```
+
+```{r}
+train %>%
+  ggplot(aes(x = BsmtUnfSF, y = psf)) +
+  geom_point(color = "red", alpha = 0.3) +
+  geom_smooth(methold = "lm")
+```
+
+```{r}
+# TotalBsmtSF: Total square feet of basement area
+ggplot(train, aes(x = TotalBsmtSF)) +
+  geom_histogram(alpha = 0.5, fill = "red")  
+```
+
+```{r}
+# Heating: Type of heating
+train %>%
+  group_by(Heating) %>%
+  summarise(count = n(),
+            avg = mean(psf),
+            median = median(psf))
+# Conclustion : Most of the values belong to one category
+```
+
+```{r}
+# HeatingQC: Heating quality and condition
+train %>%
+  group_by(HeatingQC) %>%
+  summarise(count = n(),
+            avg = mean(psf),
+            median = median(psf))
+```
+
+```{r}
+ggplot(train, aes(x = HeatingQC, y = psf, fill =  HeatingQC)) +
+  geom_boxplot() +
+  theme(legend.position = "none")
+# Conclusion : Good. Not great.
+```
+
+```{r}
+# CentralAir: Central air conditioning
+train %>%
+  group_by(CentralAir) %>%
+  summarise(count = n(),
+            avg = mean(psf),
+            median = median(psf))
+```
+
+```{r}
+ggplot(train, aes(x = CentralAir, y = psf, fill =  CentralAir)) +
+  geom_boxplot() +
+  theme(legend.position = "none")
+# Conclusion : Nice distinction between both category but very less values.
+```
+
+```{r}
+# Electrical: Electrical system
+train %>%
+  group_by(Electrical) %>%
+  summarise(count = n(),
+            avg = mean(psf),
+            median = median(psf))
+```
+
+```{r}
+ggplot(train, aes(x = Electrical, y = psf, fill =  Electrical)) +
+  geom_boxplot() +
+  theme(legend.position = "none")
+# Conclusion : Some penalty if not standard breakers
+```
+
+```{r}
+train %>%
+  select(LotArea, contains("SF"), -psf) %>%
+  head(10)
+```
+
 
 
 
