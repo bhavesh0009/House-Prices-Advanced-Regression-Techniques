@@ -663,6 +663,42 @@ train %>%
 ```
 
 ```{r}
+# 2ndFlrSF: Second floor square feet
+ggplot(train, aes(x = `2ndFlrSF`)) +
+  geom_histogram(alpha = 0.5, fill = "red")  
+```
+
+```{r}
+train %>%
+  filter(`2ndFlrSF` > 0) %>%
+  ggplot(aes(x = `1stFlrSF`, y = psf)) +
+  geom_point(color = "red", alpha = 0.3) +
+  geom_smooth(method = "lm")
+# Conclusion : looks very unusal. Negative co-relation for 2nd floor?
+```
+
+```{r}
+# LowQualFinSF: Low quality finished square feet (all floors)
+ggplot(train, aes(x = LowQualFinSF)) +
+  geom_histogram(alpha = 0.5, fill = "red")  
+# Conclusion : Most of values are 0. Ignore.
+```
+
+```{r}
+# GrLivArea: Above grade (ground) living area square feet
+ggplot(train, aes(x = GrLivArea)) +
+  geom_histogram(alpha = 0.5, fill = "red")  
+```
+
+```{r}
+train %>%
+  ggplot(aes(x = GrLivArea, y = psf)) +
+  geom_point(color = "red", alpha = 0.3) +
+  geom_smooth(method = "lm")
+# Conclusion : Important feature
+```
+
+```{r}
 
 ```
 
