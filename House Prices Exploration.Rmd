@@ -352,7 +352,66 @@ train %>%
 ```
 
 ```{r}
+#Exterior1st: Exterior covering on house
+train %>%
+  group_by(Exterior1st) %>%
+  summarise(count = n(),
+            avg = mean(psf),
+            median = median(psf))
+```
 
+```{r}
+ggplot(train, aes(x = Exterior1st, y = psf, fill =  Exterior1st)) +
+  geom_boxplot() +
+  theme(legend.position = "none") +
+  coord_flip()
+#Conclusion : Interestign feature
+```
+
+```{r}
+#Exterior2nd: Exterior covering on house (if more than one material)
+train %>%
+  group_by(Exterior2nd) %>%
+  summarise(count = n(),
+            avg = mean(psf),
+            median = median(psf))
+```
+
+```{r}
+train %>%
+  group_by(Exterior1st, Exterior2nd) %>%
+  summarise(count = n()) %>%
+  arrange(desc(count))
+# Conclusion : Exterior 2nd is equal to 1st if both exterior are same.
+```
+
+```{r}
+# MasVnrType: Masonry veneer type
+train %>%
+  group_by(MasVnrType) %>%
+  summarise(count = n(),
+            avg = mean(psf),
+            median = median(psf))
+```
+
+```{r}
+ggplot(train, aes(x = MasVnrType, y = psf, fill =  MasVnrType)) +
+  geom_boxplot() +
+  theme(legend.position = "none")
+# Need to replace null values with none
+```
+
+```{r}
+#MasVnrArea: Masonry veneer area in square feet
+train %>%
+  ggplot(aes(x = MasVnrArea)) +
+  geom_histogram(binwidth = 50)
+```
+
+```{r}
+train %>%
+  ggplot(aes(x = MasVnrArea, y = psf)) +
+  geom_jitter(color = "red", alpha = 0.3)
 ```
 
 
