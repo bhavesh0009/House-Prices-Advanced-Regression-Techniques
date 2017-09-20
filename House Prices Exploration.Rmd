@@ -492,7 +492,48 @@ train %>%
 
 ```{r}
 # BsmtExposure: Refers to walkout or garden level walls
+train %>%
+  group_by(BsmtExposure) %>%
+  summarise(count = n(),
+            avg = mean(psf),
+            median = median(psf))
+```
 
+```{r}
+ggplot(train, aes(x = BsmtExposure, y = psf, fill =  BsmtExposure)) +
+  geom_boxplot() +
+  theme(legend.position = "none")
+# Conclustion : No clear distinction
+```
+
+```{r}
+# BsmtFinType1: Rating of basement finished area
+train %>%
+  group_by(BsmtFinType1) %>%
+  summarise(count = n(),
+            avg = mean(psf),
+            median = median(psf))
+```
+
+```{r}
+ggplot(train, aes(x = BsmtFinType1, y = psf, fill =  BsmtFinType1)) +
+  geom_boxplot() +
+  theme(legend.position = "none")
+# Conclusion : Not bad
+```
+
+```{r}
+# BsmtFinSF1: Type 1 finished square feet
+ggplot(train, aes(x = BsmtFinSF1)) +
+  geom_histogram(alpha = 0.5, fill = "red") 
+```
+
+```{r}
+train %>%
+  ggplot(aes(x = BsmtFinSF1, y = psf)) +
+  geom_jitter(color = "red", alpha = 0.3) +
+  geom_smooth(methold = "lm")
+# Conclustion : Not good feature
 ```
 
 
