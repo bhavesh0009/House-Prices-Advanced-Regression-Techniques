@@ -786,7 +786,49 @@ multiplot(p1, p2, p3, layout=layout)
 ```
 
 ```{r}
-??multiplot
+p1 <- ggplot(train, aes(x = as.factor(KitchenAbvGr), y = psf, fill =  as.factor(KitchenAbvGr))) +
+  geom_boxplot() +
+  theme(legend.position = "none") +
+  labs(x = "", y = "Prize Per SqFt.")
+
+p2 <- ggplot(train, aes(x = as.factor(KitchenAbvGr), fill =  as.factor(KitchenAbvGr))) +
+  geom_bar() +
+  theme(legend.position = "none")+
+  labs(x = "")
+
+p3 <- ggplot(train, aes(x = as.factor(KitchenAbvGr), y =psf,  fill =  as.factor(KitchenAbvGr))) +
+  geom_bar(stat = "summary", fun.y = "mean") +
+  theme(legend.position = "none")+
+  labs(x = "KitchenAbvGr", y = "Mean")
+
+layout <- matrix(c(1,1,1,2,2,2,3,3,3),3,3,byrow=TRUE)
+multiplot(p1, p2, p3, layout=layout)
+# Conclusion : Obviously 1 kitchen is very common. Nothing conclusive.
+```
+
+```{r}
+p1 <- ggplot(train, aes(x = KitchenQual, y = psf, fill =  KitchenQual)) +
+  geom_boxplot() +
+  theme(legend.position = "none") +
+  labs(x = "", y = "Prize Per SqFt.")
+
+p2 <- ggplot(train, aes(x = KitchenQual, fill =  KitchenQual)) +
+  geom_bar() +
+  theme(legend.position = "none")+
+  labs(x = "")
+
+p3 <- ggplot(train, aes(x = KitchenQual, y =psf,  fill =  KitchenQual)) +
+  geom_bar(stat = "summary", fun.y = "mean") +
+  theme(legend.position = "none")+
+  labs(x = "KitchenQual", y = "Mean")
+
+layout <- matrix(c(1,1,1,1,2,2,3,3),2,4,byrow=TRUE)
+multiplot(p1, p2, p3, layout=layout)
+# Conclusion : Good distinction between good and average.
+```
+
+```{r}
+
 ```
 
 
