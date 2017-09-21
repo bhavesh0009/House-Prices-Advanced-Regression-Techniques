@@ -874,6 +874,25 @@ factorChart <- function (df, val1, val2) {
 factorChart(train, "TotRmsAbvGrd", "psf")
 ```
 
+```{r}
+factorChart(train, "Functional", "psf")
+# Conclusion : Typical dominated here. Not interested.
+```
+
+```{r}
+factorChart(train, "Fireplaces", "psf")
+# Conclusion : Either 0 or 1 fireplaces, Nothing conclusive
+```
+
+```{r}
+factorChart(train, "FireplaceQu", "psf")
+# conclusion : Nothing much to differentiate
+```
+
+```{r}
+
+```
+
 
 
 
