@@ -10,6 +10,7 @@ library(tidyr)
 library(data.table)
 library(knitr)
 require(cowplot)
+library(Rmisc)
 ```
 
 ```{r}
@@ -764,9 +765,28 @@ train %>%
 ```
 
 ```{r}
-ggplot(train, aes(x = as.factor(BedroomAbvGr), y = psf, fill =  as.factor(BedroomAbvGr))) +
+p1 <- ggplot(train, aes(x = as.factor(BedroomAbvGr), y = psf, fill =  as.factor(BedroomAbvGr))) +
   geom_boxplot() +
-  theme(legend.position = "none")
+  theme(legend.position = "none") +
+  labs(x = "", y = "Prize Per SqFt.")
+
+p2 <- ggplot(train, aes(x = as.factor(BedroomAbvGr), fill =  as.factor(BedroomAbvGr))) +
+  geom_bar() +
+  theme(legend.position = "none")+
+  labs(x = "")
+
+p3 <- ggplot(train, aes(x = as.factor(BedroomAbvGr), y =psf,  fill =  as.factor(BedroomAbvGr))) +
+  geom_bar(stat = "summary", fun.y = "mean") +
+  theme(legend.position = "none")+
+  labs(x = "BedroomAbvGr")
+
+layout <- matrix(c(1,1,1,2,2,2,3,3,3),3,3,byrow=TRUE)
+multiplot(p1, p2, p3, layout=layout)
+# Conclusion : Although mean is different, median is not
+```
+
+```{r}
+??multiplot
 ```
 
 
