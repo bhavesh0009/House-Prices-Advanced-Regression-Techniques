@@ -853,17 +853,21 @@ factorChart <- function (df, val1, val2) {
   p1 <- ggplot(df, aes(x = as.factor(df[[val1]]), y = df[[val2]], fill =  as.factor(df[[val1]]))) +
     geom_boxplot() +
     theme(legend.position = "none") +
-    labs(x = val1, y = val2)
+    labs(x = "", y = val2)+
+    theme(axis.text.x = element_text(angle = 45, hjust = 1))
   
   p2 <- ggplot(df, aes(x = as.factor(df[[val1]]), fill =  as.factor(df[[val1]]))) +
     geom_bar() +
     theme(legend.position = "none")+
-    labs(x = val1)
+    labs(x = val1)+
+    theme(axis.text.x = element_text(angle = 45, hjust = 1))
   
   p3 <- ggplot(df, aes(x = as.factor(df[[val1]]), y = df[[val2]],  fill =  as.factor(df[[val1]]))) +
     geom_bar(stat = "summary", fun.y = "mean") +
     theme(legend.position = "none")+
-    labs(x = val1, y = "Mean")
+    labs(x = val1, y = "Mean") +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1))
+  
   
   layout <- matrix(c(1,1,1,1,2,2,3,3),2,4,byrow=TRUE)
   multiplot(p1, p2, p3, layout=layout)  
@@ -890,6 +894,22 @@ factorChart(train, "FireplaceQu", "psf")
 ```
 
 ```{r}
+factorChart(train, "GarageType", "psf")
+```
+
+```{r}
+p1 <- train %>%
+        ggplot(aes(x = GarageYrBlt, y = ..density..)) +
+        geom_histogram(fill = "red", alpha = 0.2, color = "black") +
+        geom_density(fill = "green", alpha = 0.2)
+
+p2 <- train %>%
+  ggplot(aes(x = GarageYrBlt, y = psf)) +
+  geom_point(color = "red", alpha = 0.3) +
+  geom_smooth(method = "lm")
+
+layout <- matrix(c(1,2),1,2,byrow=TRUE)
+multiplot(p1, p2, layout=layout)  
 
 ```
 
