@@ -1,9 +1,24 @@
 ---
-title: "Kaggle House prize prediction"
-output: html_notebook
+title: 'Kaggle - House Price Prediction - Feature Exploration'
+date: '`r Sys.Date()`'
+output:
+  html_document:
+    number_sections: true
+    fig_caption: true
+    toc: true
+    fig_width: 7
+    fig_height: 4.5
+    theme: cosmo
+    highlight: tango
+    code_folding: hide
 ---
 
-```{r}
+```{r setup, include=FALSE, echo=FALSE}
+knitr::opts_chunk$set(echo=TRUE, error=FALSE)
+```
+
+
+```{r} 
 library(ggplot2)
 library(dplyr)
 library(tidyr)
@@ -11,6 +26,32 @@ library(data.table)
 library(knitr)
 require(cowplot)
 library(Rmisc)
+```
+
+```{r}
+factorChart <- function (df, val1, val2) {
+  p1 <- ggplot(df, aes(x = as.factor(df[[val1]]), y = df[[val2]], fill =  as.factor(df[[val1]]))) +
+    geom_boxplot() +
+    theme(legend.position = "none") +
+    labs(x = "", y = val2)+
+    theme(axis.text.x = element_text(angle = 45, hjust = 1))
+  
+  p2 <- ggplot(df, aes(x = as.factor(df[[val1]]), fill =  as.factor(df[[val1]]))) +
+    geom_bar() +
+    theme(legend.position = "none")+
+    labs(x = val1)+
+    theme(axis.text.x = element_text(angle = 45, hjust = 1))
+  
+  p3 <- ggplot(df, aes(x = as.factor(df[[val1]]), y = df[[val2]],  fill =  as.factor(df[[val1]]))) +
+    geom_bar(stat = "summary", fun.y = "mean") +
+    theme(legend.position = "none")+
+    labs(x = val1, y = "Mean") +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1))
+  
+  
+  layout <- matrix(c(1,1,1,1,2,2,3,3),2,4,byrow=TRUE)
+  multiplot(p1, p2, p3, layout=layout)  
+}
 ```
 
 ```{r}
@@ -44,6 +85,8 @@ train_nulls %>%
 ```
 
 ```{r}
+
+
 # Converting subclass to factor
 train$MSSubClass = as.factor(train$MSSubClass)
 ```
@@ -849,29 +892,7 @@ multiplot(p1, p2, p3, layout=layout)
 ```
 
 ```{r}
-factorChart <- function (df, val1, val2) {
-  p1 <- ggplot(df, aes(x = as.factor(df[[val1]]), y = df[[val2]], fill =  as.factor(df[[val1]]))) +
-    geom_boxplot() +
-    theme(legend.position = "none") +
-    labs(x = "", y = val2)+
-    theme(axis.text.x = element_text(angle = 45, hjust = 1))
-  
-  p2 <- ggplot(df, aes(x = as.factor(df[[val1]]), fill =  as.factor(df[[val1]]))) +
-    geom_bar() +
-    theme(legend.position = "none")+
-    labs(x = val1)+
-    theme(axis.text.x = element_text(angle = 45, hjust = 1))
-  
-  p3 <- ggplot(df, aes(x = as.factor(df[[val1]]), y = df[[val2]],  fill =  as.factor(df[[val1]]))) +
-    geom_bar(stat = "summary", fun.y = "mean") +
-    theme(legend.position = "none")+
-    labs(x = val1, y = "Mean") +
-    theme(axis.text.x = element_text(angle = 45, hjust = 1))
-  
-  
-  layout <- matrix(c(1,1,1,1,2,2,3,3),2,4,byrow=TRUE)
-  multiplot(p1, p2, p3, layout=layout)  
-}
+
 ```
 
 ```{r}

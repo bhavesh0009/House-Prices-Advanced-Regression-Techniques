@@ -1,0 +1,1265 @@
+---
+title: 'Kaggle - House Price Prediction - Feature Exploration'
+date: '`r Sys.Date()`'
+output:
+  html_document:
+    number_sections: true
+    fig_caption: true
+    toc: true
+    fig_width: 8.75
+    fig_height: 5.65
+    theme: cosmo
+    highlight: tango
+    code_folding: hide
+---
+# Introduction
+Ask a home buyer to describe their dream house, and they probably won't begin with the height of the basement ceiling or the proximity to an east-west railroad. But this playground competition's dataset proves that much more influences price negotiations than the number of bedrooms or a white-picket fence.
+
+With 79 explanatory variables describing (almost) every aspect of residential homes in Ames, Iowa, this competition challenges to predict the final price of each home.
+
+This kernel aims at exploration of each 79 features.
+
+## Loading all Required libraries
+- **Rmisc** : For multiplot function
+- **ggplot2,ggforce** : For plots
+- **dplyr, tidyr** : For data operations
+- **data.table** : For Loading Data
+- **knitr** : To kneet html
+```{r warning = FALSE, error = FALSE, results='hide', message=FALSE}
+library(Rmisc)
+library(ggplot2)
+library(ggforce)
+library(dplyr)
+library(tidyr)
+library(data.table)
+library(knitr)
+```
+
+## Functions to plot factor and continous variables
+Creating common function using ggplot and multiplot to explore factor features and continous numeric features. This function will take three arguments - dataframe, x variable and y variable(target).
+
+* **factorchart** : Returns three charts : boxplot, bar chart for count and bar chart for mean of target
+* **contChart**   : Returns two charts   : histogram + density, scatter plot against target with linear regression and standard error
+```{r warning = FALSE, error = FALSE, results='hide', message=FALSE}
+factorChart <- function (df, val1, val2) {
+  p1 <- ggplot(df, aes(x = as.factor(df[[val1]]), y = df[[val2]], fill =  as.factor(df[[val1]]))) +
+    geom_boxplot() +
+    theme(legend.position = "none") +
+    labs(x = "", y = val2)+
+    theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+    scale_y_continuous(labels = scales::comma)
+  
+  p2 <- ggplot(df, aes(x = as.factor(df[[val1]]), fill =  as.factor(df[[val1]]))) +
+    geom_bar() +
+    geom_text(stat = "count", aes(label =..count..), vjust = -0.5) +
+    theme(legend.position = "none")+
+    labs(x = val1)+
+    theme(axis.text.x = element_text(angle = 45, hjust = 1)) 
+  
+  p3 <- ggplot(df, aes(x = as.factor(df[[val1]]), y = df[[val2]],  fill =  as.factor(df[[val1]]))) +
+    geom_bar(stat = "summary", fun.y = "mean") +
+    theme(legend.position = "none")+
+    labs(x = val1, y = "Mean") +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+    scale_y_continuous(labels = scales::comma)
+  
+  
+  layout <- matrix(c(1,1,1,1,2,2,3,3),2,4,byrow=TRUE)
+  multiplot(p1, p2, p3, layout=layout)  
+}
+
+contChart <- function (df, val1, val2) {
+p1 <- ggplot(df, aes(x = train[[val1]], y = ..density..)) +
+      geom_histogram(fill = "red", alpha = 0.2, color = "black") +
+      geom_density(fill = "green", alpha = 0.2)+
+      labs(x = val1)
+
+p2 <- ggplot(df, aes(x = df[[val1]], y = df[[val2]])) +
+      geom_point(color = "red", alpha = 0.3) +
+      geom_smooth(method = "lm")+
+    labs(x = val1, y = val2)+
+    scale_y_continuous(labels = scales::comma)
+
+layout <- matrix(c(1,2), 1, 2, byrow=TRUE)
+multiplot(p1, p2, layout=layout)
+}
+```
+
+## Load Data
+We are using **fread** function to read train and test csv files. fread is easiest and one of the most powerful function to load data(except excel)
+```{r}
+#setwd("D:/Kaggle/House Prices Advanced Regression Techniques")
+setwd("..//input/")
+train <- fread("train.csv", stringsAsFactors = TRUE)
+test <- fread("test.csv", stringsAsFactors = TRUE)
+```
+
+## Data Overview
+Let's look at few sample records first
+```{r}
+kable(head(train))
+```
+
+Train got 1460 observations and 81 variables. Test got 80 variables(excluding target variable - SalePrice)
+
+## Missing Values
+Let's look at columns with some missing values
+```{r warning = FALSE}
+train_nulls <- as.data.frame(colSums(is.na(train)))#as.data.frame(sapply(X = train, FUN = function(x) sum(is.na(x))))
+train_nulls <- add_rownames(train_nulls, "Column")
+colnames(train_nulls)[2] <- "nulls"
+train_nulls$notNulls = nrow(train) - train_nulls$nulls
+
+train_nulls %>%
+  filter(nulls > 0) %>%
+  gather("null_flag", "count", -Column) %>%
+  ggplot(aes(x = Column, y = count, fill = null_flag)) +
+  geom_bar(stat = "identity",position = "fill") +
+  theme(legend.position = "bottom") +
+  coord_flip()
+```
+
+
+Few features get almost 100% null values. e.g. poolqc. Probably null poolqc means no pool. It will lbe meaningful. We will impute null values after exploring each feature
+
+
+## Exploring Each Feature
+### MSSubClass
+As per data dictonary:
+
+**MSSubClass:** Identifies the type of dwelling involved in the sale.	
+
+        20	1-STORY 1946 & NEWER ALL STYLES
+        30	1-STORY 1945 & OLDER
+        40	1-STORY W/FINISHED ATTIC ALL AGES
+        45	1-1/2 STORY - UNFINISHED ALL AGES
+        50	1-1/2 STORY FINISHED ALL AGES
+        60	2-STORY 1946 & NEWER
+        70	2-STORY 1945 & OLDER
+        75	2-1/2 STORY ALL AGES
+        80	SPLIT OR MULTI-LEVEL
+        85	SPLIT FOYER
+        90	DUPLEX - ALL STYLES AND AGES
+       120	1-STORY PUD (Planned Unit Development) - 1946 & NEWER
+       150	1-1/2 STORY PUD - ALL AGES
+       160	2-STORY PUD - 1946 & NEWER
+       180	PUD - MULTILEVEL - INCL SPLIT LEV/FOYER
+       190	2 FAMILY CONVERSION - ALL STYLES AND AGES
+
+Although we read it as integer but it is actually a factor. 
+
+```{r}
+factorChart(train, "MSSubClass", "SalePrice")
+```
+
+**Conclusion:** Looks promosing feature with clear distinction between top 2 categories - 1 story and 2 story
+
+### MSZoning
+As per data dictonary:
+**MSZoning:** Identifies the general zoning classification of the sale.
+		
+       A	Agriculture
+       C	Commercial
+       FV	Floating Village Residential
+       I	Industrial
+       RH	Residential High Density
+       RL	Residential Low Density
+       RP	Residential Low Density Park 
+       RM	Residential Medium Density
+
+```{r}
+factorChart(train, "MSZoning", "SalePrice")
+```
+
+**Conclusion:** Most of the values belong to Residential low and medium density. Boxplot also suggest good distinction between those. Mean too suggests same thing. Good Feature.
+
+### LotFrontage
+**LotFrontage:** Linear feet of street connected to property.
+
+```{r warning = FALSE, error = FALSE, message=FALSE}
+contChart(train, "LotFrontage", "SalePrice")
+```
+
+**Conclusion:** Most of the frountage values are between 0 to 100. Good linear relation ship with target variable.
+
+### LotArea
+**LotArea:** Lot size in square feet - Probably most important feature. Let's check
+
+
+```{r}
+contChart(train, "LotArea", "SalePrice")
+```
+Unfortunately our custom made function not giving valuable information due to outliers. Let's try again by zooming desne values.
+```{r}
+train %>%
+  ggplot(aes(x = LotArea)) +
+  geom_histogram(color = "red", binwidth = 100) +
+  facet_zoom(x = (LotArea >0 & LotArea < 20000))
+  
+```
+
+```{r}
+train %>%
+  ggplot(aes(x = LotArea, y = SalePrice)) +
+      geom_point(color = "red", alpha = 0.3) +
+      geom_smooth(method = "lm")+
+    scale_y_continuous(labels = scales::comma)+
+  facet_zoom(x = (LotArea >0 & LotArea < 50000))
+```
+
+**Conclusion:** Most of values are between 5000 and 15000. Strong linear relation with target variable.
+
+### Street
+**Street:** Type of road access to property
+
+       Grvl	Gravel	
+       Pave	Paved
+
+
+```{r}
+factorChart(train, "Street", "SalePrice")
+```
+
+**Conclusion:** Almost all values belong to Pave streets. Not useful.
+
+### Alley
+**Alley:** Type of alley access to property
+
+       Grvl	Gravel
+       Pave	Paved
+       NA 	No alley access
+```{r}
+factorChart(train, "Alley", "SalePrice")
+```
+**Conclusion:** Most of the homes are with no Alley. Acutally we can impute NA with some meaningful value.
+
+### LotShape
+**LotShape:** General shape of property
+
+       Reg	Regular	
+       IR1	Slightly irregular
+       IR2	Moderately Irregular
+       IR3	Irregular
+
+
+```{r}
+factorChart(train, "LotShape", "SalePrice")
+```
+
+** Conclusion :** Moderately Irregular lot should fetch lesser price than slightly irregular lot. However it is not the case here. Probably because IR2 and IR3 got very small number of observations. It is also possible that Lotsize masking this fact. So let's use prize per square feet instead of SalePrice.
+```{r}
+train$psf <- train$SalePrice / train$LotArea
+```
+
+###LandContour
+**LandContour:** Flatness of the property
+
+       Lvl	Near Flat/Level	
+       Bnk	Banked - Quick and significant rise from street grade to building
+       HLS	Hillside - Significant slope from side to side
+       Low	Depression
+
+
+```{r}
+factorChart(train, "LandContour", "psf")
+```
+
+**Conclusion:** Most of the houses are near flat. Ofcourse Hill side got more value than depression one.
+
+###Utilities
+**Utilities:** Type of utilities available
+		
+		   AllPub	All public Utilities (E,G,W,& S)	
+       NoSewr	Electricity, Gas, and Water (Septic Tank)
+       NoSeWa	Electricity and Gas Only
+       ELO	Electricity only	
+
+```{r}
+factorChart(train, "Utilities", "psf")
+```
+**Conclusion:** Not at all useful. Very much skewed. Almost all house got all publice utilities except one.
+
+###LotConfig: 
+**Lot configuration:**
+
+       Inside	Inside lot
+       Corner	Corner lot
+       CulDSac	Cul-de-sac
+       FR2	Frontage on 2 sides of property
+       FR3	Frontage on 3 sides of property
+
+```{r}
+factorChart(train, "LotConfig", "psf")
+```
+**Conclusion:** Not much to distinguish between Inside and corner. FR3 fetches good price ofcourse. But not enough values to conclude anything.
+
+###LandSlope
+**LandSlope:** 
+       Slope of property
+       Gtl	Gentle slope
+       Mod	Moderate Slope	
+       Sev	Severe Slope
+```{r}
+factorChart(train, "LandSlope", "psf")
+```
+**Conclusion: ** Probably realted with LandContour. gtl > mode > sev justified
+
+###Neighborhood
+**Neighborhood:** Physical locations within Ames city limits
+
+       Blmngtn	Bloomington Heights
+       Blueste	Bluestem
+       BrDale	Briardale
+       BrkSide	Brookside
+       ClearCr	Clear Creek
+       CollgCr	College Creek
+       Crawfor	Crawford
+       Edwards	Edwards
+       Gilbert	Gilbert
+       IDOTRR	Iowa DOT and Rail Road
+       MeadowV	Meadow Village
+       Mitchel	Mitchell
+       Names	North Ames
+       NoRidge	Northridge
+       NPkVill	Northpark Villa
+       NridgHt	Northridge Heights
+       NWAmes	Northwest Ames
+       OldTown	Old Town
+       SWISU	South & West of Iowa State University
+       Sawyer	Sawyer
+       SawyerW	Sawyer West
+       Somerst	Somerset
+       StoneBr	Stone Brook
+       Timber	Timberland
+       Veenker	Veenker
+```{r}
+factorChart(train, "Neighborhood", "psf")
+```
+**Conclusion:** Few neighborhood will be better. Looks important feature. We will explore it more at time of model creation.
+
+###Condition1 ###
+**Condition1:** Proximity to various conditions
+	
+
+       Artery	Adjacent to arterial street
+       Feedr	Adjacent to feeder street	
+       Norm	Normal	
+       RRNn	Within 200' of North-South Railroad
+       RRAn	Adjacent to North-South Railroad
+       PosN	Near positive off-site feature--park, greenbelt, etc.
+       PosA	Adjacent to postive off-site feature
+       RRNe	Within 200' of East-West Railroad
+       RRAe	Adjacent to East-West Railroad
+```{r}
+factorChart(train, "Condition1", "psf")
+```
+**Conclustion:** People don't like building adjacent to rail roads or streets.
+
+###Condition2###
+**Condition2:** Proximity to various conditions (if more than one is present)
+       
+       Artery	Adjacent to arterial street
+       Feedr	Adjacent to feeder street	
+       Norm	Normal	
+       RRNn	Within 200' of North-South Railroad
+       RRAn	Adjacent to North-South Railroad
+       PosN	Near positive off-site feature--park, greenbelt, etc.
+       PosA	Adjacent to postive off-site feature
+       RRNe	Within 200' of East-West Railroad
+       RRAe	Adjacent to East-West Railroad
+```{r}
+factorChart(train, "Condition2", "psf")
+```
+**Conclusion: ** Need to mix it with condition 1 to get better result
+
+###BldgType ###
+**BldgType:** Type of dwelling
+		
+>       1Fam	Single-family Detached	
+>       2FmCon	Two-family Conversion; originally built as one-family dwelling
+>       Duplx	Duplex
+>       TwnhsE	Townhouse End Unit
+>       TwnhsI	Townhouse Inside Unit
+
+```{r}
+factorChart(train, "BldgType", "psf")
+```
+**Conclusion :** Superb Feature. Twinhouse definetly fetching higher price than others
+
+### HouseStyle###
+**HouseStyle:** Style of dwelling
+	
+       1Story	One story
+       1.5Fin	One and one-half story: 2nd level finished
+       1.5Unf	One and one-half story: 2nd level unfinished
+       2Story	Two story
+       2.5Fin	Two and one-half story: 2nd level finished
+       2.5Unf	Two and one-half story: 2nd level unfinished
+       SFoyer	Split Foyer
+       SLvl	Split Level
+```{r}
+factorChart(train, "HouseStyle", "psf")
+```
+**Conclusion : **2 story getting premium prize
+
+###OverallQual###
+**OverallQual:** Rates the overall material and finish of the house
+
+       10	Very Excellent
+       9	Excellent
+       8	Very Good
+       7	Good
+       6	Above Average
+       5	Average
+       4	Below Average
+       3	Fair
+       2	Poor
+       1	Very Poor
+
+```{r}
+factorChart(train, "OverallQual", "psf")
+```
+
+```{r}
+factorChart(train, "OverallQual", "SalePrice")
+```
+**Conclusion:** Definetly a decider. Possibaly most important feature.Also it suggests good quality houses are spacious. 
+
+###OverallCond###
+**OverallCond:** Rates the overall condition of the house
+
+       10	Very Excellent
+       9	Excellent
+       8	Very Good
+       7	Good
+       6	Above Average	
+       5	Average
+       4	Below Average	
+       3	Fair
+       2	Poor
+       1	Very Poor
+```{r}
+factorChart(train, "OverallCond", "SalePrice")
+```
+
+```{r}
+factorChart(train, "OverallCond", "psf")
+```
+**Conclusion:** 5 is fetching higher price than 6,7,8. Interesting? Need to explore more. 
+
+###YearBuilt###
+**YearBuilt:** Original construction date
+```{r}
+contChart(train, "YearBuilt", "SalePrice")
+```
+**Conclusion :**Definetly latest home taking more prize. We can define new continous variable HouseAge
+
+###YearRemodAdd###
+**YearRemodAdd:** Remodel date (same as construction date if no remodeling or additions)
+```{r}
+contChart(train, "YearRemodAdd", "SalePrice")
+```
+let's also find out if house is remodeled or not
+```{r}
+train %>%
+  mutate(remodel_flag = ifelse(YearBuilt == YearRemodAdd, "N", "Y")) %>%
+  group_by(remodel_flag) %>%
+  dplyr::summarize(count = n(),
+            avg = mean(psf),
+            median = median(psf))
+
+train %>%
+  mutate(remodel_flag = ifelse(YearBuilt == YearRemodAdd, "N", "Y")) %>%
+  ggplot(aes(x = remodel_flag, y = psf, fill = remodel_flag)) +
+  geom_boxplot()
+```
+
+```{r}
+train %>%
+  mutate(remodel_flag = ifelse(YearBuilt == YearRemodAdd, "N", "Y")) %>%
+  filter(remodel_flag == "Y") %>%
+  ggplot(aes(x = YearRemodAdd, y = psf, fill = YearBuilt)) +
+    geom_bar(stat = "identity")
+```
+**Conclusion:** What happended in 1950?
+
+###RoofStyle###
+**RoofStyle:** Type of roof
+
+       Flat	Flat
+       Gable	Gable
+       Gambrel	Gabrel (Barn)
+       Hip	Hip
+       Mansard	Mansard
+       Shed	Shed
+
+```{r}
+factorChart(train, "RoofStyle", "psf")
+```
+**Conclusion :** Pass. Nothing to differentiate between top 2 values.
+
+###RoofMatl###
+**RoofMatl:** Roof material
+
+       ClyTile	Clay or Tile
+       CompShg	Standard (Composite) Shingle
+       Membran	Membrane
+       Metal	Metal
+       Roll	Roll
+       Tar&Grv	Gravel & Tar
+       WdShake	Wood Shakes
+       WdShngl	Wood Shingles
+
+```{r}
+factorChart(train, "RoofMatl", "psf")
+```
+**Conclusion :** Again most of the values belong to one category only 
+
+###Exterior1st###
+**Exterior1st:** Exterior covering on house
+
+       AsbShng	Asbestos Shingles
+       AsphShn	Asphalt Shingles
+       BrkComm	Brick Common
+       BrkFace	Brick Face
+       CBlock	Cinder Block
+       CemntBd	Cement Board
+       HdBoard	Hard Board
+       ImStucc	Imitation Stucco
+       MetalSd	Metal Siding
+       Other	Other
+       Plywood	Plywood
+       PreCast	PreCast	
+       Stone	Stone
+       Stucco	Stucco
+       VinylSd	Vinyl Siding
+       Wd Sdng	Wood Siding
+       WdShing	Wood Shingles
+```{r}
+factorChart(train, "Exterior1st", "psf")
+```
+**Conclusion :** Interestign feature
+
+###Exterior2nd###
+**Exterior2nd:** Exterior covering on house (if more than one material)
+
+       AsbShng	Asbestos Shingles
+       AsphShn	Asphalt Shingles
+       BrkComm	Brick Common
+       BrkFace	Brick Face
+       CBlock	Cinder Block
+       CemntBd	Cement Board
+       HdBoard	Hard Board
+       ImStucc	Imitation Stucco
+       MetalSd	Metal Siding
+       Other	Other
+       Plywood	Plywood
+       PreCast	PreCast
+       Stone	Stone
+       Stucco	Stucco
+       VinylSd	Vinyl Siding
+       Wd Sdng	Wood Siding
+       WdShing	Wood Shingles
+
+```{r}
+factorChart(train, "Exterior2nd", "psf")
+```
+**Conclusion:** Exterior 2nd is equal to 1st if both exterior are same.Need to create some other feature around it.
+
+###MasVnrType###
+**MasVnrType:** Masonry veneer type
+
+       BrkCmn	Brick Common
+       BrkFace	Brick Face
+       CBlock	Cinder Block
+       None	None
+       Stone	Stone
+
+```{r}
+factorChart(train, "MasVnrType", "psf")
+```
+**Conclusion:** Need to replace null values with none.
+
+###MasVnrArea###
+**MasVnrArea:** Masonry veneer area in square feet
+```{r error=FALSE, warning=FALSE, message=FALSE}
+contChart(train, "MasVnrArea", "psf")
+```
+
+```{r error=FALSE, warning=FALSE, message=FALSE}
+contChart(train, "MasVnrArea", "SalePrice")
+```
+**Conclusion:** most of the value are 0
+
+###ExterQual###
+ExterQual: Evaluates the quality of the material on the exterior 
+		
+       Ex	Excellent
+       Gd	Good
+       TA	Average/Typical
+       Fa	Fair
+       Po	Poor
+
+```{r}
+factorChart(train, "ExterQual", "psf")
+```
+**Conclusion :** Excellent feature. Clear distinction between top 2 values - Good and Average
+
+###ExterCond###
+**ExterCond:** Evaluates the present condition of the material on the exterior
+		
+       Ex	Excellent
+       Gd	Good
+       TA	Average/Typical
+       Fa	Fair
+       Po	Poor
+
+```{r}
+factorChart(train, "ExterCond", "psf")
+```
+**Conclusion :** Nope.
+
+###Foundation###
+**Foundation:** Type of foundation
+		
+       BrkTil	Brick & Tile
+       CBlock	Cinder Block
+       PConc	Poured Contrete	
+       Slab	Slab
+       Stone	Stone
+       Wood	Wood
+```{r}
+factorChart(train, "Foundation", "psf")
+```
+**Conclusion :** Nice One! Clear distinction between top 2 values
+
+###BsmtCond###
+**BsmtCond:** Evaluates the general condition of the basement
+
+       Ex	Excellent
+       Gd	Good
+       TA	Typical - slight dampness allowed
+       Fa	Fair - dampness or some cracking or settling
+       Po	Poor - Severe cracking, settling, or wetness
+       NA	No Basement
+
+```{r}
+factorChart(train, "BsmtCond", "psf")
+```
+**Conclusion :** Again superb picture. Nice distinction between top 3 values 
+
+###BsmtExposure###
+**BsmtExposure:** Refers to walkout or garden level walls
+
+       Gd	Good Exposure
+       Av	Average Exposure (split levels or foyers typically score average or above)	
+       Mn	Mimimum Exposure
+       No	No Exposure
+       NA	No Basement
+```{r}
+factorChart(train, "BsmtExposure", "psf")
+```
+**Conclusion: ** No clear distinction
+
+###BsmtFinType1###
+***BsmtFinType1:*** Rating of basement finished area
+
+       GLQ	Good Living Quarters
+       ALQ	Average Living Quarters
+       BLQ	Below Average Living Quarters	
+       Rec	Average Rec Room
+       LwQ	Low Quality
+       Unf	Unfinshed
+       NA	No Basement
+```{r}
+factorChart(train, "BsmtFinType1", "psf")
+```
+
+```{r}
+factorChart(train, "BsmtFinType1", "SalePrice")
+```
+**Conclusion:** Not bad
+
+###BsmtFinSF1###
+**BsmtFinSF1:** Type 1 finished square feet
+```{r warning = FALSE, error = FALSE, message=FALSE}
+contChart(train, "BsmtFinSF1", "psf")
+```
+**Conclusion:** Many values without basement and quite a few outlier. Below Average feature
+
+###BsmtFinType2###
+**BsmtFinType2:** Rating of basement finished area (if multiple types)
+
+       GLQ	Good Living Quarters
+       ALQ	Average Living Quarters
+       BLQ	Below Average Living Quarters	
+       Rec	Average Rec Room
+       LwQ	Low Quality
+       Unf	Unfinshed
+       NA	No Basement
+```{r}
+factorChart(train, "BsmtFinType2", "psf")
+```
+**Conclusion:** Most of the value belong to one category only. Not helpful.
+
+###BsmtFinSF2###
+**BsmtFinSF2:** Type 2 finished square feet
+```{r warning = FALSE, message=FALSE, error=FALSE}
+contChart(train, "BsmtFinSF2", "psf")
+```
+
+Need to create new feature whether 2nd basement is present or not. Looks like all 0 are not having 2nd basement.
+```{r}
+train %>%
+  mutate(bsmt2Flag = ifelse(BsmtFinSF2 == 0, "N", "Y")) %>%
+  factorChart("bsmt2Flag", "psf")
+```
+**Conclusion:** 2nd basement not helping much.
+
+###BsmtUnfSF###
+**BsmtUnfSF:** Unfinished square feet of basement area
+```{r warning = FALSE, message=FALSE, error=FALSE}
+contChart(train, "BsmtUnfSF", "psf")
+```
+**Conclusion:** Very neutral feature.
+
+###TotalBsmtSF###
+**TotalBsmtSF:** Total square feet of basement area
+```{r warning = FALSE, message=FALSE, error=FALSE}
+contChart(train, "TotalBsmtSF", "psf")
+```
+Very strong relationship. Let's zoom dense area
+```{r}
+train %>%
+  ggplot(aes(x = TotalBsmtSF, y = psf)) +
+      geom_point(color = "red", alpha = 0.3) +
+      geom_smooth(method = "lm")+
+    scale_y_continuous(labels = scales::comma)+
+  facet_zoom(x = (TotalBsmtSF >0 & TotalBsmtSF < 3000))
+```
+**Conclusion: ** Nice one!!
+
+###Heating###
+**Heating:** Type of heating
+		
+       Floor	Floor Furnace
+       GasA	Gas forced warm air furnace
+       GasW	Gas hot water or steam heat
+       Grav	Gravity furnace	
+       OthW	Hot water or steam heat other than gas
+       Wall	Wall furnace
+```{r}
+factorChart(train, "Heating", "psf")
+```
+**Conclusion: ** Almost all houses got Gas forced warm air furnace except 32. This wouldn't help much.
+
+###HeatingQC###
+**HeatingQC:** Heating quality and condition
+
+       Ex	Excellent
+       Gd	Good
+       TA	Average/Typical
+       Fa	Fair
+       Po	Poor
+```{r}
+factorChart(train, "HeatingQC", "psf")
+```
+
+```{r}
+factorChart(train, "HeatingQC", "SalePrice")
+```
+**Conclusion: ** Superb. However I think it must be highly co-related with overall rating.
+
+###CentralAir###
+**CentralAir:** Central air conditioning
+
+       N	No
+       Y	Yes
+```{r}
+factorChart(train, "CentralAir", "SalePrice")
+```
+**Conclustion :** Most of the values belong to one category
+
+###Electrical###
+**Electrical:** Electrical system
+
+       SBrkr	Standard Circuit Breakers & Romex
+       FuseA	Fuse Box over 60 AMP and all Romex wiring (Average)	
+       FuseF	60 AMP Fuse Box and mostly Romex wiring (Fair)
+       FuseP	60 AMP Fuse Box and mostly knob & tube wiring (poor)
+       Mix	Mixed
+
+```{r}
+factorChart(train, "Electrical", "psf")
+```
+***Conclusion:*** Practically I don't think electrical system can affect price. However it is possible SBrkr is new system and that is why higher mean?
+
+###1stFlrSF###
+**1stFlrSF:** First Floor square feet
+```{r message= FALSE}
+contChart(train, "1stFlrSF", "psf")
+```
+
+```{r message= FALSE}
+contChart(train, "1stFlrSF", "SalePrice")
+```
+**Conclusion:** Higher the squarefeet of 1st floor, higher the price
+
+###2ndFlrSF###
+**2ndFlrSF:** Second floor square feet
+```{r message= FALSE}
+contChart(train, "2ndFlrSF", "SalePrice")
+```
+Many houses doesnt have 2nd floor. So let's filter them out.
+```{r}
+train %>%
+  filter(`2ndFlrSF` > 0) %>%
+  ggplot(aes(x = `2ndFlrSF`, y = SalePrice)) +
+  geom_point(color = "red", alpha = 0.3) +
+  geom_smooth(method = "lm")
+```
+**Conclusion :** Ahh!! You can't find more linear relationship than this ;)
+
+###LowQualFinSF###
+**LowQualFinSF:** Low quality finished square feet (all floors)
+
+```{r message = FALSE}
+contChart(train, "LowQualFinSF", "psf")
+```
+Very less house with any low quality finishing. Let's check it out
+```{r}
+train %>%
+  mutate(LowQualFlag = ifelse(LowQualFinSF > 0, 1, 0)) %>%
+  group_by(LowQualFlag) %>%
+  dplyr::summarize(avg = mean(psf),
+            cnt = n(),
+            avgSP = mean(SalePrice)) %>%
+  ggplot(aes(x = as.factor(LowQualFlag), y = cnt, fill = as.factor(LowQualFlag))) +
+    geom_bar(stat = "identity")
+  
+```
+***Conclusion:*** Very less number of buildings there. 
+
+###GrLivArea###
+**GrLivArea:** Above grade (ground) living area square feet
+```{r message=FALSE}
+contChart(train, "GrLivArea", "SalePrice")
+```
+
+```{r message = FALSE}
+contChart(train, "GrLivArea", "psf")
+```
+**Conclusion : ** Very similar to other area features
+
+###BsmtFullBath###
+**BsmtFullBath**: Basement full bathrooms
+
+```{r}
+factorChart(train,"BsmtFullBath", "psf")
+```
+
+```{r}
+factorChart(train,"BsmtFullBath", "SalePrice")
+```
+**Conclusion :** more than 0 bathroom definetly helps fetching more prize
+
+###BsmtHalfBath###
+**BsmtHalfBath:** Basement half bathrooms
+```{r}
+factorChart(train,"BsmtHalfBath", "psf")
+```
+**Conclusion : ** Very less number of house got more than half bath. Nothing conclusive here.
+
+###FullBath:###
+**FullBath:** Full bathrooms above grade
+```{r}
+factorChart(train, "FullBath", "psf")
+```
+**Conclusion :** Clear distinction between 1 and 2 bath. Nice One!!!
+
+###HalfBath###
+**HalfBath:** Half baths above grade
+
+```{r}
+factorChart(train, "HalfBath", "SalePrice")
+```
+**Conclusion :** I think adding this with FullBath will give better feature.
+
+###Bedroom###
+**Bedroom:** Bedrooms above grade (does NOT include basement bedrooms)
+```{r}
+factorChart(train, "BedroomAbvGr", "psf")
+```
+
+```{r}
+factorChart(train, "BedroomAbvGr", "SalePrice")
+```
+**Conclusion: ** Although 3 and 4 bedroom will fetch more prize, but psf will not be better
+
+###Kitchen###
+**Kitchen:** Kitchens above grade
+```{r}
+factorChart(train, "KitchenAbvGr", "psf")
+```
+**Conclusion :** Most of the home got 1 kitchen. Not helpful.
+
+###KitchenQual###
+**KitchenQual:** Kitchen quality
+
+       Ex	Excellent
+       Gd	Good
+       TA	Typical/Average
+       Fa	Fair
+       Po	Poor
+
+```{r}
+factorChart(train, "KitchenQual", "psf")
+```
+**Conclusion: ** Expected. Nice Feature.
+
+###TotRmsAbvGrd###
+**TotRmsAbvGrd:** Total rooms above grade (does not include bathrooms)
+
+```{r}
+factorChart(train, "TotRmsAbvGrd", "psf")
+```
+
+```{r}
+factorChart(train, "TotRmsAbvGrd", "SalePrice")
+```
+**Conclusion: ** Definetley key feature.
+
+###Functional###
+**Functional:** Home functionality (Assume typical unless deductions are warranted)
+
+       Typ	Typical Functionality
+       Min1	Minor Deductions 1
+       Min2	Minor Deductions 2
+       Mod	Moderate Deductions
+       Maj1	Major Deductions 1
+       Maj2	Major Deductions 2
+       Sev	Severely Damaged
+       Sal	Salvage only
+
+```{r}
+factorChart(train, "Functional", "SalePrice")
+```
+***Conclusion:*** Most of the houses are having typical functionality only. Not helpful.
+
+###Fireplaces###
+**Fireplaces:** Number of fireplaces
+```{r}
+factorChart(train, "Fireplaces", "psf")
+```
+
+```{r}
+factorChart(train, "Fireplaces", "SalePrice")
+```
+
+**Conclusion:** Usually big houses got fireplace as psf not increasing with Fireplaces.
+
+###FireplaceQu###
+**FireplaceQu:** Fireplace quality
+
+       Ex	Excellent - Exceptional Masonry Fireplace
+       Gd	Good - Masonry Fireplace in main level
+       TA	Average - Prefabricated Fireplace in main living area or Masonry Fireplace in basement
+       Fa	Fair - Prefabricated Fireplace in basement
+       Po	Poor - Ben Franklin Stove
+       NA	No Fireplace
+
+```{r}
+factorChart(train, "FireplaceQu" ,"psf")
+```
+**Conclusion: ** If fireplace exists than there is good co-relation.
+
+###GarageType###
+**GarageType:** Garage location
+		
+       2Types	More than one type of garage
+       Attchd	Attached to home
+       Basment	Basement Garage
+       BuiltIn	Built-In (Garage part of house - typically has room above garage)
+       CarPort	Car Port
+       Detchd	Detached from home
+       NA	No Garage
+```{r}
+factorChart(train, "GarageType", "psf")
+```
+
+```{r}
+factorChart(train, "GarageType", "SalePrice")
+```
+**Conclusion:** Attached are better than detached.
+
+###GarageYrBlt###
+**GarageYrBlt:** Year garage was built
+
+```{r warning = FALSE, message=FALSE}
+contChart(train, "GarageYrBlt", "psf")
+```
+
+```{r warning = FALSE, message=FALSE}
+contChart(train, "GarageYrBlt", "SalePrice")
+```
+**Conclusion :** Most of the garages are built between 2000 and 2010. It also fetches more prize.
+
+###GarageFinish###
+**GarageFinish:** Interior finish of the garage
+
+       Fin	Finished
+       RFn	Rough Finished	
+       Unf	Unfinished
+       NA	No Garage
+```{r}
+factorChart(train, "GarageFinish", "psf")
+```
+**Conclusion  : ** Wow!! clear differnce :)
+
+###GarageCars###
+**GarageCars:** Size of garage in car capacity
+```{r}
+factorChart(train, "GarageCars", "psf")
+```
+**Conclusion : ** It seems Garrage is very important feature while buying house.
+
+###GarageArea###
+**GarageArea:** Size of garage in square feet
+
+```{r message = FALSE}
+contChart(train, "GarageArea", "psf")
+```
+
+```{r message=FALSE}
+contChart(train, "GarageArea", "SalePrice")
+```
+**Conclusion :** Nice linearity.
+
+###GarageQual###
+**GarageQual:** Garage quality
+
+       Ex	Excellent
+       Gd	Good
+       TA	Typical/Average
+       Fa	Fair
+       Po	Poor
+       NA	No Garage
+       
+```{r}
+factorChart(train, "GarageQual", "psf")
+```
+**Conclusion :** Most of the garages are average. Not useful.
+
+###GarageCond###
+**GarageCond:** Garage condition
+
+       Ex	Excellent
+       Gd	Good
+       TA	Typical/Average
+       Fa	Fair
+       Po	Poor
+       NA	No Garage
+```{r}
+factorChart(train, "GarageCond", "psf")
+```
+**Conclusion : ** Not helpful
+
+###PavedDrive###
+**PavedDrive:** Paved driveway
+
+       Y	Paved 
+       P	Partial Pavement
+       N	Dirt/Gravel
+```{r}
+factorChart(train, "PavedDrive", "psf")
+```
+**Conclusion : ** House with Paved Drive are better
+
+###WoodDeckSF###
+**WoodDeckSF:** Wood deck area in square feet
+
+```{r message=FALSE}
+contChart(train, "WoodDeckSF", "psf")
+```
+
+Most of the houses doesn't having wood deck. So let's consider house wiht wood deck only.
+```{r message = FALSE}
+train %>%
+  filter(WoodDeckSF > 0) %>%
+  ggplot(aes(x = WoodDeckSF, y = SalePrice)) +
+  geom_point(col = "red", alpha = 0.2) +
+  geom_smooth(method = "lm")
+```
+**Conculusion :** Nice Feature.
+
+###OpenPorchSF###
+**OpenPorchSF:** Open porch area in square feet
+
+```{r message=FALSE}
+contChart(train, "OpenPorchSF", "psf")
+```
+Let's create scatter plot for only greater than 0 porches.
+```{r}
+train %>%
+  filter(OpenPorchSF > 0) %>%
+  ggplot(aes(x = OpenPorchSF, y = SalePrice)) +
+  geom_point(col = "red", alpha = 0.2) +
+  geom_smooth(method = "lm")
+```
+**Conclusion : ** Not so much linear. 
+
+###EnclosedPorch###
+**EnclosedPorch:** Enclosed porch area in square feet
+
+```{r message =FALSE}
+contChart(train, "EnclosedPorch", "psf")
+```
+
+```{r}
+train %>%
+  filter(EnclosedPorch > 0) %>%
+  ggplot(aes(x = EnclosedPorch, y = psf)) +
+  geom_point(col = "red", alpha = 0.2) +
+  geom_smooth(method = "lm")
+```
+**Conclusion : ** Nothing interesting from first glance.
+
+###3SsnPorch###
+**3SsnPorch:** Three season porch area in square feet
+```{r}
+train %>%
+  filter(`3SsnPorch` > 0) %>%
+  ggplot(aes(x = `3SsnPorch`, y = psf)) +
+  geom_point(col = "red", alpha = 0.2) +
+  geom_smooth(method = "lm")
+```
+Conclusion : Very less house with more than 0. Can be ignored.
+
+###ScreenPorch###
+**ScreenPorch:** Screen porch area in square feet
+```{r}
+train %>%
+  filter(ScreenPorch > 0) %>%
+  ggplot(aes(x = ScreenPorch, y = SalePrice)) +
+  geom_point(col = "red", alpha = 0.2) +
+  geom_smooth(method = "lm")
+```
+**Conclusion :** Not much impact on final price
+
+###PoolArea###
+**PoolArea:** Pool area in square feet
+```{r message = FALSE}
+contChart(train, "PoolArea", "psf")
+```
+
+**Conclusion : ** only 7 houses with pool.
+
+###PoolQC###
+**PoolQC:** Pool quality
+		
+       Ex	Excellent
+       Gd	Good
+       TA	Average/Typical
+       Fa	Fair
+       NA	No Pool
+       
+```{r}
+factorChart(train, "PoolQC", "SalePrice")
+```
+**Conclusion : ** Exceelent pool may help to deal with outliers.
+
+###Fence###
+**Fence:** Fence quality
+		
+       GdPrv	Good Privacy
+       MnPrv	Minimum Privacy
+       GdWo	Good Wood
+       MnWw	Minimum Wood/Wire
+       NA	No Fence
+
+```{r}
+factorChart(train, "Fence", "psf")
+```
+
+```{r}
+factorChart(train, "Fence", "SalePrice")
+```
+**Conclusion : ** It may help to differentiate between good privacy and minimum privacy observations.
+
+###MiscFeature###
+**MiscFeature:** Miscellaneous feature not covered in other categories
+		
+       Elev	Elevator
+       Gar2	2nd Garage (if not described in garage section)
+       Othr	Other
+       Shed	Shed (over 100 SF)
+       TenC	Tennis Court
+       NA	None
+
+```{r}
+factorChart(train, "MiscFeature", "psf")
+```
+**Conclusion : ** Almost all observation got NA except 54
+
+###MiscVal###
+**MiscVal:** $Value of miscellaneous feature
+```{r message = FALSE}
+contChart(train, "MiscVal", "SalePrice")
+```
+**Conclusion : ** Not Good
+###MoSold### 
+**MoSold:** Month Sold (MM)
+```{r}
+factorChart(train, "MoSold", "psf")
+```
+**Conclusion : Most of the transactions happended in may, june or july. Interesting!!!
+
+###YrSold###
+**YrSold:** Year Sold (YYYY)
+```{r}
+factorChart(train, "YrSold", "psf")
+```
+**Conclusion :** Almost no inflation. Need to join year and month to check.
+
+###SaleType###
+**SaleType:** Type of sale
+		
+       WD 	Warranty Deed - Conventional
+       CWD	Warranty Deed - Cash
+       VWD	Warranty Deed - VA Loan
+       New	Home just constructed and sold
+       COD	Court Officer Deed/Estate
+       Con	Contract 15% Down payment regular terms
+       ConLw	Contract Low Down payment and low interest
+       ConLI	Contract Low Interest
+       ConLD	Contract Low Down
+       Oth	Other
+
+```{r}
+factorChart(train, "SaleType", "psf")
+```
+**Conclusion : ** Most of the observation got Conventional Warranty deed. New one are good.
+
+###SaleCondition###
+**SaleCondition:** Condition of sale
+
+       Normal	Normal Sale
+       Abnorml	Abnormal Sale -  trade, foreclosure, short sale
+       AdjLand	Adjoining Land Purchase
+       Alloca	Allocation - two linked properties with separate deeds, typically condo with a garage unit	
+       Family	Sale between family members
+       Partial	Home was not completed when last assessed (associated with New Homes)
+
+```{r}
+factorChart(train, "SaleCondition", "psf")
+```
+**Conclusion : ** Most of the sale are normal. Nothing evident.
+
+###SalePrice###
+```{r message = FALSE}
+ggplot(train, aes(x = train[["SalePrice"]], y = ..density..)) +
+      geom_histogram(fill = "red", alpha = 0.2, color = "black") +
+      geom_density(fill = "green", alpha = 0.2)+
+      labs(x = "SalePrice")
+```
+
