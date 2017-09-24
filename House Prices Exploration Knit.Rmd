@@ -21,7 +21,7 @@ This kernel aims at exploration of each 79 features.
 
 ## Loading all Required libraries
 - **Rmisc** : For multiplot function
-- **ggplot2,ggforce** : For plots
+- **ggplot2,ggforce, corrplot** : For plots
 - **dplyr, tidyr** : For data operations
 - **data.table** : For Loading Data
 - **knitr** : To kneet html
@@ -33,6 +33,7 @@ library(dplyr)
 library(tidyr)
 library(data.table)
 library(knitr)
+library(corrplot)
 ```
 
 ## Functions to plot factor and continous variables
@@ -1261,5 +1262,53 @@ ggplot(train, aes(x = train[["SalePrice"]], y = ..density..)) +
       geom_histogram(fill = "red", alpha = 0.2, color = "black") +
       geom_density(fill = "green", alpha = 0.2)+
       labs(x = "SalePrice")
+```
+
+##Corelation Graph ##
+```{r}
+tokeep <- which(sapply(train,is.numeric))
+M <- cor(train[ , tokeep, with=FALSE], use = "complete.obs")
+row_indic <- apply(M, 1, function(x) sum(x > 0.3 | x < -0.3) > 1)
+M<- M[row_indic ,row_indic ]
+corrplot (M)
+```
+##Imputing Missing Values##
+We know that pools are not present if null
+```{r}
+train[is.na(train$PoolQC)]$PoolQC = "No"
+```
+Same goes with MisFeature as well
+```{r message = FALSE, error = FALSE, warning=FALSE}
+train[is.na(train$MisFeature)]$MisFeature = "No"
+```
+and Alley
+```{r}
+train[is.na(train$Alley)]$Alley = "No"
+```
+and Fence
+```{r}
+train[is.na(train$Fence)]$Fence = "No"
+```
+Fireplaces too. If quality is not defined that means no fireplace.
+```{r}
+train[is.na(train$FireplaceQu)]$FireplaceQu = "No"
+```
+LotFrontage is quite complicated. As no info given in data dictonary. It may be in propotion with total lot area or may be 0. This one is really unknown. Let's assume those are 0 for now.
+```{r}
+train[is.na(train$LotFrontage)]$LotFrontage = 0
+```
+
+```{r}
+
+```
+
+```{r}
+
+```
+
+```{r}
+train_nulls %>%
+  filter(nulls > 0) %>%
+  arrange(desc(nulls))
 ```
 
