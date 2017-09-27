@@ -24,6 +24,8 @@ This kernel aims at exploration of each 79 features.
 - **ggplot2,ggforce, corrplot** : For plots
 - **dplyr, tidyr** : For data operations
 - **data.table** : For Loading Data
+- **broom** : To interpret model better
+- **caret** : For Data pre-procesing
 - **knitr** : To kneet html
 ```{r warning = FALSE, error = FALSE, results='hide', message=FALSE}
 library(Rmisc)
@@ -34,6 +36,9 @@ library(tidyr)
 library(data.table)
 library(knitr)
 library(corrplot)
+library(broom)
+library(caret)
+library(RANN)
 ```
 
 ## Functions to plot factor and continous variables
@@ -89,8 +94,8 @@ multiplot(p1, p2, layout=layout)
 ## Load Data
 We are using **fread** function to read train and test csv files. fread is easiest and one of the most powerful function to load data(except excel)
 ```{r}
-#setwd("D:/Kaggle/House Prices Advanced Regression Techniques")
-setwd("..//input/")
+setwd("D:/Kaggle/House Prices Advanced Regression Techniques")
+#setwd("..//input/")
 train <- fread("train.csv", stringsAsFactors = TRUE)
 test <- fread("test.csv", stringsAsFactors = TRUE)
 ```
@@ -1272,6 +1277,7 @@ row_indic <- apply(M, 1, function(x) sum(x > 0.3 | x < -0.3) > 1)
 M<- M[row_indic ,row_indic ]
 corrplot (M)
 ```
+
 ##Imputing Missing Values##
 We know that pools are not present if null
 ```{r}
@@ -1297,9 +1303,59 @@ LotFrontage is quite complicated. As no info given in data dictonary. It may be 
 ```{r}
 train[is.na(train$LotFrontage)]$LotFrontage = 0
 ```
+If garage type is not present that tells garrage is not present
+```{r}
+train[is.na(train$GarageType)]$GarageType = "No"
+```
+GarageYrBlt is tricky one. We want to penalize it so let's impute minimum year built
 
 ```{r}
+train[is.na(train$GarageYrBlt)]$GarageYrBlt =min(train$GarageYrBlt, na.rm = TRUE)
+```
+81 houses does not have garrage. so no finishing. Let's impute those as no
+```{r}
+train[is.na(train$GarageFinish)]$GarageFinish = "No"
+```
+Same goes with garage condition and quality as well
+```{r}
+train[is.na(train$GarageQual)]$GarageQual = "No"
+train[is.na(train$GarageCond)]$GarageCond = "No"
+```
 
+As per data dictonary, if Basement is NA then no basement is present. So Let's impute additional no values in all basement feature
+```{r}
+train[is.na(train$BsmtFinType2)]$BsmtFinType2 = "No"
+train[is.na(train$BsmtExposure)]$BsmtExposure = "No"
+train[is.na(train$BsmtQual)]$BsmtQual = "No"
+train[is.na(train$BsmtCond)]$BsmtCond = "No"
+```
+
+Same holds true for Vnr features as well. Only one unknown in electrica. Replace it with most common value.
+```{r}
+train[is.na(train$MasVnrType)]$MasVnrType = "No"
+train[is.na(train$MasVnrArea)]$MasVnrArea = 0
+train[is.na(train$Electrical)]$Electrical = "SBrkr"
+```
+
+```{r}
+sum(apply(train, 2, is.null))
+```
+
+**Confirmed** No null values now.
+```{r}
+head(train)
+```
+
+Let's try with simple 80:20 cross validation.
+```{r}
+# Determine row to split on: split
+split <- round(nrow(train) * .80)
+
+# Create train
+train_main <- train[1:split, ]
+
+# Create test
+train_validation <- train[(split+1):nrow(train),]
 ```
 
 ```{r}
@@ -1307,8 +1363,56 @@ train[is.na(train$LotFrontage)]$LotFrontage = 0
 ```
 
 ```{r}
-train_nulls %>%
-  filter(nulls > 0) %>%
-  arrange(desc(nulls))
+model <- lm(formula = SalePrice ~ as.factor(MSSubClass), data = train_main)
+model
+head(predict(model, train_validation))
+```
+
+```{r}
+model <- lm(formula = SalePrice ~ MSSubClass, data = train_main)
+model
+head(predict(model, train_validation))
+```
+
+```{r}
+head(train_validation$SalePrice)
+```
+
+```{r}
+kable(head(train_validation))
+```
+
+```{r}
+lmModel <- lm(formula = SalePrice ~ ., data = train_main)
+```
+
+```{r}
+lmModel$xlevels[["Condition2"]] <- union(lmModel$xlevels[["Condition2"]], levels(train_validation$Condition2))
+lmModel$xlevels[["RoofStyle"]] <- union(lmModel$xlevels[["RoofStyle"]], levels(train_validation$RoofStyle))
+lmModel$xlevels[["RoofMatl"]] <- union(lmModel$xlevels[["RoofMatl"]], levels(train_validation$RoofMatl))
+lmModel$xlevels[["Exterior1st"]] <- union(lmModel$xlevels[["Exterior1st"]], levels(train_validation$Exterior1st))
+lmModel$xlevels[["Exterior2nd"]] <- union(lmModel$xlevels[["Exterior2nd"]], levels(train_validation$Exterior2nd))
+lmModel$xlevels[["Heating"]] <- union(lmModel$xlevels[["Heating"]], levels(train_validation$Heating))
+lmModel$xlevels[["Electrical"]] <- union(lmModel$xlevels[["Electrical"]], levels(train_validation$Electrical))
+lmModel$xlevels[["PoolQC"]] <- union(lmModel$xlevels[["PoolQC"]], levels(train_validation$PoolQC))
+lmModel$xlevels[["MiscFeature"]] <- union(lmModel$xlevels[["MiscFeature"]], levels(train_validation$MiscFeature))
+lmModel$xlevels[["MiscFeature"]] <- union(lmModel$xlevels[["MiscFeature"]], levels(train_validation$MiscFeature))
+```
+
+```{r}
+p <- predict(lmModel, train_validation)
+```
+
+```{r warning = FALSE, message = FALSE}
+head(p)
+```
+
+```{r}
+head(train_validation$SalePrice)
+```
+
+```{r}
+ggplot(fitModel, aes(x = SalePrice, y = .fitted)) +
+  geom_point(col = "red", alpha = 0.2)
 ```
 

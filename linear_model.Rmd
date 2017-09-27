@@ -1,0 +1,156 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
+
+Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Ctrl+Shift+Enter*. 
+
+```{r}
+library(ggplot2) # Data visualization
+library(dplyr) #
+library(tidyr)
+library(caret)
+library(data.table)
+library(knitr)
+```
+
+```{r}
+setwd("D:/Kaggle/House Prices Advanced Regression Techniques")
+train <- fread("train.csv", stringsAsFactors = TRUE)
+test <- fread("test.csv", stringsAsFactors = TRUE)
+```
+
+```{r}
+total <- rbind(train[ , -"SalePrice"] ,test)
+```
+
+```{r}
+total[is.na(total$PoolQC)]$PoolQC = "No"
+total[is.na(total$MiscFeature)]$MiscFeature = "No"
+total[is.na(total$Alley)]$Alley = "No"
+total[is.na(total$Fence)]$Fence = "No"
+total[is.na(total$FireplaceQu)]$FireplaceQu = "No"
+total[is.na(total$LotFrontage)]$LotFrontage = 0
+total[is.na(total$GarageType)]$GarageType = "No"
+total[is.na(total$GarageYrBlt)]$GarageYrBlt =min(total$GarageYrBlt, na.rm = TRUE)
+total[is.na(total$GarageFinish)]$GarageFinish = "No"
+total[is.na(total$GarageQual)]$GarageQual = "No"
+total[is.na(total$GarageCond)]$GarageCond = "No"
+total[is.na(total$BsmtFinType2)]$BsmtFinType2 = "No"
+total[is.na(total$BsmtExposure)]$BsmtExposure = "No"
+total[is.na(total$BsmtQual)]$BsmtQual = "No"
+total[is.na(total$BsmtCond)]$BsmtCond = "No"
+total[is.na(total$MasVnrType)]$MasVnrType = "No"
+total[is.na(total$MasVnrArea)]$MasVnrArea = 0
+total[is.na(total$BsmtFinSF1)]$BsmtFinSF1 = 0
+total[is.na(total$BsmtFinSF2)]$BsmtFinSF2 = 0
+total[is.na(total$BsmtUnfSF)]$BsmtUnfSF = 0
+total[is.na(total$TotalBsmtSF)]$TotalBsmtSF = 0
+total[is.na(total$BsmtFullBath)]$BsmtFullBath = 0
+total[is.na(total$GarageCars)]$GarageCars = 0
+total[is.na(total$BsmtHalfBath)]$BsmtHalfBath = 0
+total[is.na(total$GarageArea)]$GarageArea = 0
+total[is.na(total$Electrical)]$Electrical = "SBrkr"
+
+```
+
+```{r}
+setnames(total, "1stFlrSF", "FirstFlrSF")
+setnames(total, "2ndFlrSF", "SecondFlrSF")
+setnames(total, "3SsnPorch", "threePorch")
+```
+
+```{r}
+dmy <- dummyVars(" ~ .", data = total, fullRank = T)
+```
+
+```{r}
+total <- data.frame(predict(dmy, newdata = total))
+```
+
+```{r}
+train[,"SalePrice"]
+```
+
+```{r}
+n = nrow(train)
+train = cbind(total[1:n,], train[,"SalePrice"])
+test = total[(n+1):(nrow(total)),]
+
+rm(total)
+gc()
+```
+
+```{r}
+glimpse(train)
+```
+
+```{r}
+train$SalePrice = log(train$SalePrice)
+```
+
+```{r}
+index <- createDataPartition(train$SalePrice, p=0.75, list=FALSE)
+train_main <- train[ index,]
+train_val <- train[-index,]
+```
+
+```{r}
+control <- rfeControl(functions = rfFuncs,
+                      method = "repeatedcv",
+                      repeats = 3,
+                      verbose = FALSE)
+outcomeName <- "SalePrice"
+predictors <- names(train) [!names(train) %in% outcomeName]
+sale_price_pred_profile <- rfe(train[,predictors], train[,outcomeName], rfeControl = control)
+
+```
+
+```{r}
+sale_price_pred_profile
+```
+
+```{r}
+predictors(sale_price_pred_profile)
+```
+
+```{r}
+plot(sale_price_pred_profile, type=c("g", "o"))
+```
+
+```{r}
+model <- lm(SalePrice ~ GrLivArea + OverallQual + TotalBsmtSF + FirstFlrSF, data = train_main)
+predicted_Sale_price <- predict(model, newdata = train_val)
+```
+
+```{r}
+sqrt(mean((train_val$SalePrice - predicted_Sale_price)^2))
+```
+
+```{r}
+analysis <- data.frame(exp(train_val$SalePrice) , exp(predicted_Sale_price))
+ggplot(analysis, aes(x = exp.train_val.SalePrice., y = exp.predicted_Sale_price.)) +
+  geom_point(color = "red", alpha = 0.2)
+```
+
+```{r}
+train[, c("LotArea","GrLivArea","TotalBsmtSF","FirstFlrSF","SecondFlrSF","BsmtFinSF1","BsmtFinSF2", "BsmtUnfSF" )]
+```
+
+```{r}
+sum(train$GrLivArea ==  train$TotalBsmtSF + train$FirstFlrSF + train$SecondFlrSF)
+```
+
+```{r}
+train$carpetRatio = train$LotArea / train$GrLivArea
+```
+
+```{r}
+train %>%
+  filter(carpetRatio < 25) %>%
+  ggplot(aes(x = carpetRatio, y = SalePrice, col = factor(OverallQual))) +
+  geom_point(alpha = 0.8)
+```
+
