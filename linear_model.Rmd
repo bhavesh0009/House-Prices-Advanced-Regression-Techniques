@@ -7,14 +7,18 @@ This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute
 
 Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Ctrl+Shift+Enter*. 
 
-```{r}
+```{r warning=FALSE, message=FALSE}
 library(ggplot2) # Data visualization
 library(dplyr) #
 library(tidyr)
 library(caret)
 library(data.table)
 library(knitr)
+library(rpart)
+library(rattle)
+library(rpart.plot)
 ```
+
 
 ```{r}
 setwd("D:/Kaggle/House Prices Advanced Regression Techniques")
@@ -63,15 +67,69 @@ setnames(total, "3SsnPorch", "threePorch")
 ```
 
 ```{r}
+total %>%
+  mutate(ExterQual = ifelse(ExterQual == 'Ex', 5, ifelse(ExterQual == 'Gd', 4, ifelse(ExterQual == 'TA',  3, ifelse(ExterQual == 'Fa', 2, ifelse(ExterQual == 'Po', 1, 0)))))
+,ExterCond = ifelse(ExterCond == 'Ex', 5, ifelse(ExterCond == 'Gd', 4, ifelse(ExterCond == 'TA',  3, ifelse(ExterCond == 'Fa', 2, ifelse(ExterCond == 'Po', 1, 0)))))
+,BsmtQual = ifelse(BsmtQual == 'Ex', 5, ifelse(BsmtQual == 'Gd', 4, ifelse(BsmtQual == 'TA',  3, ifelse(BsmtQual == 'Fa', 2, ifelse(BsmtQual == 'Po', 1, 0)))))
+,BsmtCond = ifelse(BsmtCond == 'Ex', 5, ifelse(BsmtCond == 'Gd', 4, ifelse(BsmtCond == 'TA',  3, ifelse(BsmtCond == 'Fa', 2, ifelse(BsmtCond == 'Po', 1, 0)))))
+,HeatingQC = ifelse(HeatingQC == 'Ex', 5, ifelse(HeatingQC == 'Gd', 4, ifelse(HeatingQC == 'TA',  3, ifelse(HeatingQC == 'Fa', 2, ifelse(HeatingQC == 'Po', 1, 0)))))
+,KitchenQual = ifelse(KitchenQual == 'Ex', 5, ifelse(KitchenQual == 'Gd', 4, ifelse(KitchenQual == 'TA',  3, ifelse(KitchenQual == 'Fa', 2, ifelse(KitchenQual == 'Po', 1, 0)))))
+,FireplaceQu = ifelse(FireplaceQu == 'Ex', 5, ifelse(FireplaceQu == 'Gd', 4, ifelse(FireplaceQu == 'TA',  3, ifelse(FireplaceQu == 'Fa', 2, ifelse(FireplaceQu == 'Po', 1, 0)))))
+,GarageQual = ifelse(GarageQual == 'Ex', 5, ifelse(GarageQual == 'Gd', 4, ifelse(GarageQual == 'TA',  3, ifelse(GarageQual == 'Fa', 2, ifelse(GarageQual == 'Po', 1, 0)))))
+,GarageCond = ifelse(GarageCond == 'Ex', 5, ifelse(GarageCond == 'Gd', 4, ifelse(GarageCond == 'TA',  3, ifelse(GarageCond == 'Fa', 2, ifelse(GarageCond == 'Po', 1, 0)))))
+,PoolQC = ifelse(PoolQC == 'Ex', 5, ifelse(PoolQC == 'Gd', 4, ifelse(PoolQC == 'TA',  3, ifelse(PoolQC == 'Fa', 2, ifelse(PoolQC == 'No', 1, 0)))))
+,GarageFinish = ifelse(GarageFinish == 'Fin', 4, ifelse(GarageFinish == 'RFn', 3, ifelse(GarageFinish == 'Unf',  2, ifelse(GarageFinish == 'No', 1, 0))))
+,BsmtExposure = ifelse(BsmtExposure == 'Gd', 4, ifelse(BsmtExposure == 'Av', 3, ifelse(BsmtExposure == 'Mn',  2, ifelse(BsmtExposure == 'No', 1, 0))))
+,LandSlope = ifelse(LandSlope == 'Gtl', 3, ifelse(LandSlope == 'Mod', 2, ifelse(LandSlope == 'Sev',  1, 0)))
+,CentralAir = ifelse(CentralAir == 'N', 0, ifelse(CentralAir == 'Y', 1, -1))
+,LotShape = ifelse(LotShape == 'Reg', 4, ifelse(LotShape == 'IR1', 3, ifelse(LotShape == 'IR2',  2, ifelse(LotShape == 'IR3', 1, 0))))
+,BsmtFinType1 = ifelse(BsmtFinType1 == 'GLQ', 6, ifelse(BsmtFinType1 == 'ALQ', 5, ifelse(BsmtFinType1 == 'BLQ',  4, ifelse(BsmtFinType1 == 'Rec', 3, ifelse(BsmtFinType1 == 'LwQ', 2, ifelse(BsmtFinType1 == 'Unf', 1, 0))))))
+,BsmtFinType2 = ifelse(BsmtFinType2 == 'GLQ', 6, ifelse(BsmtFinType2 == 'ALQ', 5, ifelse(BsmtFinType2 == 'BLQ',  4, ifelse(BsmtFinType2 == 'Rec', 3, ifelse(BsmtFinType2 == 'LwQ', 2, ifelse(BsmtFinType2 == 'Unf', 1, 0))))))
+)
+```
+
+```{r}
+total$ExterQual = as.numeric(total$ExterQual)
+total$ExterCond = as.numeric(total$ExterCond)
+total$BsmtQual = as.numeric(total$BsmtQual)
+total$BsmtCond = as.numeric(total$BsmtCond)
+total$HeatingQC = as.numeric(total$HeatingQC)
+total$KitchenQual = as.numeric(total$KitchenQual)
+total$FireplaceQu = as.numeric(total$FireplaceQu)
+total$GarageQual = as.numeric(total$GarageQual)
+total$GarageCond = as.numeric(total$GarageCond)
+total$PoolQC = as.numeric(total$PoolQC)
+total$GarageFinish = as.numeric(total$GarageFinish)
+total$BsmtExposure = as.numeric(total$BsmtExposure)
+total$BsmtFinType1 = as.numeric(total$BsmtFinType1)
+total$BsmtFinType2 = as.numeric(total$BsmtFinType2)
+total$LandSlope = as.numeric(total$LandSlope)
+total$CentralAir = as.numeric(total$CentralAir)
+total$LotShape = as.numeric(total$LotShape)
+
+```
+
+```{r}
+
+total$YrMoSold <- as.Date(paste(total$YrSold, total$MoSold, "01", sep = "."), format = "%Y.%m.%d")
+```
+
+```{r}
+total <- total %>%
+  mutate(RemodFlag = ifelse(YearBuilt == YearRemodAdd, 0, 1),
+         Age = YrSold - YearBuilt,
+         AgeRemod = YrSold - YearRemodAdd,
+         TotalBath = FullBath + HalfBath)
+```
+
+```{r}
+total <- subset(total, select = -c(YearBuilt, YearRemodAdd, YrSold, MoSold, FullBath, HalfBath ) )
+```
+
+
+```{r}
 dmy <- dummyVars(" ~ .", data = total, fullRank = T)
-```
-
-```{r}
 total <- data.frame(predict(dmy, newdata = total))
-```
-
-```{r}
-train[,"SalePrice"]
 ```
 
 ```{r}
@@ -84,17 +142,22 @@ gc()
 ```
 
 ```{r}
-glimpse(train)
-```
-
-```{r}
 train$SalePrice = log(train$SalePrice)
 ```
 
 ```{r}
+set.seed(32)
 index <- createDataPartition(train$SalePrice, p=0.75, list=FALSE)
 train_main <- train[ index,]
 train_val <- train[-index,]
+
+```
+
+
+```{r}
+library(doParallel) 
+cl <- makeCluster(detectCores(), type='PSOCK')
+registerDoParallel(cl)
 ```
 
 ```{r}
@@ -113,7 +176,7 @@ sale_price_pred_profile
 ```
 
 ```{r}
-predictors(sale_price_pred_profile)
+write.csv(as.data.frame(predictors(sale_price_pred_profile)), "features.csv")
 ```
 
 ```{r}
@@ -121,36 +184,75 @@ plot(sale_price_pred_profile, type=c("g", "o"))
 ```
 
 ```{r}
-model <- lm(SalePrice ~ GrLivArea + OverallQual + TotalBsmtSF + FirstFlrSF, data = train_main)
+model <- lm(SalePrice ~ GrLivArea + OverallQual + TotalBsmtSF + FirstFlrSF + BsmtFinSF1 + LotArea + GarageArea + OverallCond + SecondFlrSF + Age + GarageCars + AgeRemod + FireplaceQu + MSSubClass + ExterQual + BsmtFinType1
++Neighborhood.Edwards +Neighborhood.NAmes +Neighborhood.OldTown +Neighborhood.Gilbert + Neighborhood.CollgCr +Neighborhood.MeadowV +Neighborhood.Crawfor +Neighborhood.NPkVill +Neighborhood.BrDale+Neighborhood.NridgHt+Neighborhood.Somerst
++Neighborhood.NoRidge +Neighborhood.ClearCr +Neighborhood.NWAmes +Neighborhood.SWISU +Neighborhood.SawyerW +Neighborhood.Sawyer+Neighborhood.BrkSide +Neighborhood.Timber +Neighborhood.Veenker +Neighborhood.IDOTRR +Neighborhood.Mitchel +Neighborhood.Blueste +Neighborhood.StoneBr + GarageType.Attchd +GarageFinish + GarageYrBlt+OpenPorchSF+ KitchenQual + BsmtQual + HeatingQC + CentralAir, data = train_main)
 predicted_Sale_price <- predict(model, newdata = train_val)
-```
-
-```{r}
 sqrt(mean((train_val$SalePrice - predicted_Sale_price)^2))
 ```
 
 ```{r}
-analysis <- data.frame(exp(train_val$SalePrice) , exp(predicted_Sale_price))
-ggplot(analysis, aes(x = exp.train_val.SalePrice., y = exp.predicted_Sale_price.)) +
-  geom_point(color = "red", alpha = 0.2)
+plot(model)
 ```
 
 ```{r}
-train[, c("LotArea","GrLivArea","TotalBsmtSF","FirstFlrSF","SecondFlrSF","BsmtFinSF1","BsmtFinSF2", "BsmtUnfSF" )]
+train_main %>%
+  filter(Id %in% c(496, 524, 1299)) %>%
+  select(Id, LotArea, GrLivArea, BsmtFinSF1, BsmtFinSF2, SalePrice)
 ```
 
 ```{r}
-sum(train$GrLivArea ==  train$TotalBsmtSF + train$FirstFlrSF + train$SecondFlrSF)
+hist(train$BsmtFinSF1)
 ```
 
 ```{r}
-train$carpetRatio = train$LotArea / train$GrLivArea
+test_Sale_price <- predict(model, newdata = test)
+submission <- cbind(test$Id, exp(test_Sale_price))
+colnames(submission) <- c("Id", "SalePrice")
+write.csv(submission, "submission_clean.csv", row.names = F)
+```
+
+```{r}
+submission
+```
+
+```{r}
+head(exp(test_Sale_price))
 ```
 
 ```{r}
 train %>%
-  filter(carpetRatio < 25) %>%
-  ggplot(aes(x = carpetRatio, y = SalePrice, col = factor(OverallQual))) +
-  geom_point(alpha = 0.8)
+  select(Id, FullBath, HalfBath, BsmtFullBath, BsmtHalfBath)
 ```
 
+```{r}
+analysis <- data.frame(train_val$Id, exp(train_val$SalePrice) , exp(predicted_Sale_price))
+colnames(analysis) <- c("Id", "Actual", "Predicted")
+ggplot(analysis, aes(x = exp(train_val$SalePrice), y = exp(predicted_Sale_price), label = Id)) +
+  geom_point(color = "red", alpha = 0.2) +
+  geom_text() +
+  geom_abline(intercept = 0)
+```
+
+```{r}
+analysis<- analysis %>%
+  mutate(diff = Actual - Predicted,
+         d2 = sqrt(diff ^ 2),
+         ol = ifelse(d2 > 25000, "Y", "N"))
+```
+
+```{r}
+analysis <- analysis %>%
+  inner_join(train_val, by = "Id") %>%
+  select(-d2, -diff, -Actual, -Predicted, -SalePrice, -Id)
+```
+
+```{r}
+fit <- rpart(ol ~ .,method="class", data=analysis)
+```
+
+```{r}
+plot(fit, uniform=TRUE, 
+  	main="Classification Tree for analysis")
+text(fit, use.n=TRUE, all=TRUE, cex=.8)
+```
