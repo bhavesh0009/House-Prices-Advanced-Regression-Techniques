@@ -1,0 +1,175 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
+
+Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Ctrl+Shift+Enter*. 
+
+```{r warning=FALSE, message=FALSE}
+library(ggplot2) # Data visualization
+library(dplyr) #
+library(tidyr)
+library(caret)
+library(data.table)
+library(knitr)
+library(rpart)
+library(rattle)
+library(rpart.plot)
+library(broom)
+library(glmnet)
+```
+
+```{r}
+setwd("D:/Kaggle/House Prices Advanced Regression Techniques")
+train <- fread("train.csv", stringsAsFactors = TRUE)
+test <- fread("test.csv", stringsAsFactors = TRUE)
+```
+
+```{r}
+total <- rbind(train[ , -"SalePrice"] ,test)
+total[is.na(total$PoolQC)]$PoolQC = "No"
+total[is.na(total$MiscFeature)]$MiscFeature = "No"
+total[is.na(total$Alley)]$Alley = "No"
+total[is.na(total$Fence)]$Fence = "No"
+total[is.na(total$FireplaceQu)]$FireplaceQu = "No"
+total[is.na(total$LotFrontage)]$LotFrontage = 0
+total[is.na(total$GarageType)]$GarageType = "No"
+total[is.na(total$GarageYrBlt)]$GarageYrBlt =min(total$GarageYrBlt, na.rm = TRUE)
+total[is.na(total$GarageFinish)]$GarageFinish = "No"
+total[is.na(total$GarageQual)]$GarageQual = "No"
+total[is.na(total$GarageCond)]$GarageCond = "No"
+total[is.na(total$BsmtFinType2)]$BsmtFinType2 = "No"
+total[is.na(total$BsmtExposure)]$BsmtExposure = "No"
+total[is.na(total$BsmtQual)]$BsmtQual = "No"
+total[is.na(total$BsmtCond)]$BsmtCond = "No"
+total[is.na(total$MasVnrType)]$MasVnrType = "No"
+total[is.na(total$MasVnrArea)]$MasVnrArea = 0
+total[is.na(total$BsmtFinSF1)]$BsmtFinSF1 = 0
+total[is.na(total$BsmtFinSF2)]$BsmtFinSF2 = 0
+total[is.na(total$BsmtUnfSF)]$BsmtUnfSF = 0
+total[is.na(total$TotalBsmtSF)]$TotalBsmtSF = 0
+total[is.na(total$BsmtFullBath)]$BsmtFullBath = 0
+total[is.na(total$GarageCars)]$GarageCars = 0
+total[is.na(total$BsmtHalfBath)]$BsmtHalfBath = 0
+total[is.na(total$GarageArea)]$GarageArea = 0
+total[is.na(total$Electrical)]$Electrical = "SBrkr"
+setnames(total, "1stFlrSF", "FirstFlrSF")
+setnames(total, "2ndFlrSF", "SecondFlrSF")
+setnames(total, "3SsnPorch", "threePorch")
+
+```
+
+```{r}
+total <- total %>%
+  mutate(ExterQual = ifelse(ExterQual == 'Ex', 5, ifelse(ExterQual == 'Gd', 4, ifelse(ExterQual == 'TA',  3, ifelse(ExterQual == 'Fa', 2, ifelse(ExterQual == 'Po', 1, 0)))))
+,ExterCond = ifelse(ExterCond == 'Ex', 5, ifelse(ExterCond == 'Gd', 4, ifelse(ExterCond == 'TA',  3, ifelse(ExterCond == 'Fa', 2, ifelse(ExterCond == 'Po', 1, 0)))))
+,BsmtQual = ifelse(BsmtQual == 'Ex', 5, ifelse(BsmtQual == 'Gd', 4, ifelse(BsmtQual == 'TA',  3, ifelse(BsmtQual == 'Fa', 2, ifelse(BsmtQual == 'Po', 1, 0)))))
+,BsmtCond = ifelse(BsmtCond == 'Ex', 5, ifelse(BsmtCond == 'Gd', 4, ifelse(BsmtCond == 'TA',  3, ifelse(BsmtCond == 'Fa', 2, ifelse(BsmtCond == 'Po', 1, 0)))))
+,HeatingQC = ifelse(HeatingQC == 'Ex', 5, ifelse(HeatingQC == 'Gd', 4, ifelse(HeatingQC == 'TA',  3, ifelse(HeatingQC == 'Fa', 2, ifelse(HeatingQC == 'Po', 1, 0)))))
+,KitchenQual = ifelse(KitchenQual == 'Ex', 5, ifelse(KitchenQual == 'Gd', 4, ifelse(KitchenQual == 'TA',  3, ifelse(KitchenQual == 'Fa', 2, ifelse(KitchenQual == 'Po', 1, 0)))))
+,FireplaceQu = ifelse(FireplaceQu == 'Ex', 5, ifelse(FireplaceQu == 'Gd', 4, ifelse(FireplaceQu == 'TA',  3, ifelse(FireplaceQu == 'Fa', 2, ifelse(FireplaceQu == 'Po', 1, 0)))))
+,GarageQual = ifelse(GarageQual == 'Ex', 5, ifelse(GarageQual == 'Gd', 4, ifelse(GarageQual == 'TA',  3, ifelse(GarageQual == 'Fa', 2, ifelse(GarageQual == 'Po', 1, 0)))))
+,GarageCond = ifelse(GarageCond == 'Ex', 5, ifelse(GarageCond == 'Gd', 4, ifelse(GarageCond == 'TA',  3, ifelse(GarageCond == 'Fa', 2, ifelse(GarageCond == 'Po', 1, 0)))))
+,PoolQC = ifelse(PoolQC == 'Ex', 5, ifelse(PoolQC == 'Gd', 4, ifelse(PoolQC == 'TA',  3, ifelse(PoolQC == 'Fa', 2, ifelse(PoolQC == 'No', 1, 0)))))
+,GarageFinish = ifelse(GarageFinish == 'Fin', 4, ifelse(GarageFinish == 'RFn', 3, ifelse(GarageFinish == 'Unf',  2, ifelse(GarageFinish == 'No', 1, 0))))
+,BsmtExposure = ifelse(BsmtExposure == 'Gd', 4, ifelse(BsmtExposure == 'Av', 3, ifelse(BsmtExposure == 'Mn',  2, ifelse(BsmtExposure == 'No', 1, 0))))
+,LandSlope = ifelse(LandSlope == 'Gtl', 3, ifelse(LandSlope == 'Mod', 2, ifelse(LandSlope == 'Sev',  1, 0)))
+,CentralAir = ifelse(CentralAir == 'N', 0, ifelse(CentralAir == 'Y', 1, -1))
+,LotShape = ifelse(LotShape == 'Reg', 4, ifelse(LotShape == 'IR1', 3, ifelse(LotShape == 'IR2',  2, ifelse(LotShape == 'IR3', 1, 0))))
+,BsmtFinType1 = ifelse(BsmtFinType1 == 'GLQ', 6, ifelse(BsmtFinType1 == 'ALQ', 5, ifelse(BsmtFinType1 == 'BLQ',  4, ifelse(BsmtFinType1 == 'Rec', 3, ifelse(BsmtFinType1 == 'LwQ', 2, ifelse(BsmtFinType1 == 'Unf', 1, 0))))))
+,BsmtFinType2 = ifelse(BsmtFinType2 == 'GLQ', 6, ifelse(BsmtFinType2 == 'ALQ', 5, ifelse(BsmtFinType2 == 'BLQ',  4, ifelse(BsmtFinType2 == 'Rec', 3, ifelse(BsmtFinType2 == 'LwQ', 2, ifelse(BsmtFinType2 == 'Unf', 1, 0))))))
+)
+```
+
+```{r}
+total$ExterQual = as.numeric(total$ExterQual)
+total$ExterCond = as.numeric(total$ExterCond)
+total$BsmtQual = as.numeric(total$BsmtQual)
+total$BsmtCond = as.numeric(total$BsmtCond)
+total$HeatingQC = as.numeric(total$HeatingQC)
+total$KitchenQual = as.numeric(total$KitchenQual)
+total$FireplaceQu = as.numeric(total$FireplaceQu)
+total$GarageQual = as.numeric(total$GarageQual)
+total$GarageCond = as.numeric(total$GarageCond)
+total$PoolQC = as.numeric(total$PoolQC)
+total$GarageFinish = as.numeric(total$GarageFinish)
+total$BsmtExposure = as.numeric(total$BsmtExposure)
+total$BsmtFinType1 = as.numeric(total$BsmtFinType1)
+total$BsmtFinType2 = as.numeric(total$BsmtFinType2)
+total$LandSlope = as.numeric(total$LandSlope)
+total$CentralAir = as.numeric(total$CentralAir)
+total$LotShape = as.numeric(total$LotShape)
+total$YrMoSold <- as.Date(paste(total$YrSold, total$MoSold, "01", sep = "."), format = "%Y.%m.%d")
+total <- total %>%
+  mutate(RemodFlag = ifelse(YearBuilt == YearRemodAdd, 0, 1),
+         Age = YrSold - YearBuilt,
+         AgeRemod = YrSold - YearRemodAdd,
+         TotalBath = FullBath + HalfBath)
+total <- subset(total, select = -c(YearBuilt, YearRemodAdd, YrSold, MoSold, FullBath, HalfBath ) )
+```
+
+```{r}
+dmy <- dummyVars(" ~ .", data = total, fullRank = T)
+total <- data.frame(predict(dmy, newdata = total))
+```
+
+```{r}
+n = nrow(train)
+train = cbind(total[1:n,], train[,"SalePrice"])
+test = total[(n+1):(nrow(total)),]
+
+rm(total)
+gc()
+```
+
+```{r}
+train$SalePrice = log(train$SalePrice)
+set.seed(32)
+index <- createDataPartition(train$SalePrice, p=0.75, list=FALSE)
+train_main <- train[ index,]
+train_val <- train[-index,]
+```
+
+```{r}
+big_homes <- train_main %>% filter(GrLivArea > 2500)
+small_homes <- train_main %>% filter(GrLivArea <= 2500)
+```
+
+```{r}
+library(doParallel) 
+cl <- makeCluster(detectCores(), type='PSOCK')
+registerDoParallel(cl)
+```
+
+```{r}
+control <- rfeControl(functions = rfFuncs,
+                      method = "repeatedcv",
+                      repeats = 3,
+                      verbose = FALSE)
+outcomeName <- "SalePrice"
+predictors <- names(big_homes) [!names(big_homes) %in% outcomeName]
+big_homes_pred_profile <- rfe(big_homes[,predictors], big_homes[,outcomeName], rfeControl = control)
+```
+
+```{r}
+small_homes_pred_profile <- rfe(small_homes[,predictors], small_homes[,outcomeName], rfeControl = control)
+```
+
+```{r}
+write.csv(as.data.frame(predictors(small_homes_pred_profile)), "small_features.csv")
+write.csv(as.data.frame(predictors(big_homes_pred_profile)), "big_features.csv")
+```
+
+```{r}
+plot(lm(SalePrice ~ ., small_homes))
+```
+
+```{r}
+plot(lm(SalePrice ~ OverallQual + KitchenQual + GarageCars + GarageYrBlt + Age + ExterQual + Condition1.Norm + MasVnrArea, big_homes))
+```
+
+Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Ctrl+Alt+I*.
+
+When you save the notebook, an HTML file containing the code and output will be saved alongside it (click the *Preview* button or press *Ctrl+Shift+K* to preview the HTML file).

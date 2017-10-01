@@ -17,6 +17,8 @@ library(knitr)
 library(rpart)
 library(rattle)
 library(rpart.plot)
+library(broom)
+library(glmnet)
 ```
 
 
@@ -67,7 +69,7 @@ setnames(total, "3SsnPorch", "threePorch")
 ```
 
 ```{r}
-total %>%
+total <- total %>%
   mutate(ExterQual = ifelse(ExterQual == 'Ex', 5, ifelse(ExterQual == 'Gd', 4, ifelse(ExterQual == 'TA',  3, ifelse(ExterQual == 'Fa', 2, ifelse(ExterQual == 'Po', 1, 0)))))
 ,ExterCond = ifelse(ExterCond == 'Ex', 5, ifelse(ExterCond == 'Gd', 4, ifelse(ExterCond == 'TA',  3, ifelse(ExterCond == 'Fa', 2, ifelse(ExterCond == 'Po', 1, 0)))))
 ,BsmtQual = ifelse(BsmtQual == 'Ex', 5, ifelse(BsmtQual == 'Gd', 4, ifelse(BsmtQual == 'TA',  3, ifelse(BsmtQual == 'Fa', 2, ifelse(BsmtQual == 'Po', 1, 0)))))
@@ -110,7 +112,6 @@ total$LotShape = as.numeric(total$LotShape)
 ```
 
 ```{r}
-
 total$YrMoSold <- as.Date(paste(total$YrSold, total$MoSold, "01", sep = "."), format = "%Y.%m.%d")
 ```
 
@@ -119,11 +120,29 @@ total <- total %>%
   mutate(RemodFlag = ifelse(YearBuilt == YearRemodAdd, 0, 1),
          Age = YrSold - YearBuilt,
          AgeRemod = YrSold - YearRemodAdd,
-         TotalBath = FullBath + HalfBath)
+         TotalBath = FullBath + HalfBath,
+         AgeGarage = YrSold - GarageYrBlt)
 ```
 
 ```{r}
-total <- subset(total, select = -c(YearBuilt, YearRemodAdd, YrSold, MoSold, FullBath, HalfBath ) )
+total <- total %>%
+  mutate(
+  TotalFootage = GrLivArea + TotalBsmtSF,
+  TFProp = TotalFootage / LotArea,
+  LivToTfProp = GrLivArea / TotalFootage,
+  BsmtToBsmtProp = TotalBsmtSF / TotalFootage,
+  LivToLotAreaProp = GrLivArea / LotArea,
+  BsmtToLotAreaProp = TotalBsmtSF / LotArea,
+  TotalBsmtFinSF = BsmtFinSF1 + BsmtFinSF2,
+  BsmtFinProp = TotalBsmtFinSF / TotalBsmtSF,
+  GrLivAreaFinSF = GrLivArea - LowQualFinSF,
+  LowQualFinProp = LowQualFinSF / GrLivArea
+  )
+total[is.na(total$BsmtFinProp),]$BsmtFinProp = 0
+```
+
+```{r}
+total <- subset(total, select = -c(YearBuilt, YearRemodAdd, YrSold, MoSold, FullBath, HalfBath, GarageYrBlt ) )
 ```
 
 
@@ -153,12 +172,17 @@ train_val <- train[-index,]
 
 ```
 
+```{r}
+sum(is.na(train))
+```
+
 
 ```{r}
 library(doParallel) 
 cl <- makeCluster(detectCores(), type='PSOCK')
 registerDoParallel(cl)
 ```
+
 
 ```{r}
 control <- rfeControl(functions = rfFuncs,
@@ -172,11 +196,31 @@ sale_price_pred_profile <- rfe(train[,predictors], train[,outcomeName], rfeContr
 ```
 
 ```{r}
-sale_price_pred_profile
+lm(outcomeName ~ predictors, train)
 ```
 
 ```{r}
-write.csv(as.data.frame(predictors(sale_price_pred_profile)), "features.csv")
+sale_price_pred_profile$variables %>%
+  group_by(var) %>%
+  summarise(avg = mean(Overall)) %>%
+  arrange(desc(avg)) %>%
+  head(40) %>% 
+  ggplot(aes(x = reorder(var, avg), y = avg, fill = var))+
+  geom_bar(stat = "identity") +
+  theme(legend.position = "none") +
+  coord_flip()
+  
+```
+
+```{r}
+train %>%
+  dplyr::select(LotArea, GrLivArea, TotalBsmtSF, BsmtFinSF1, BsmtFinSF2, BsmtUnfSF, FirstFlrSF, SecondFlrSF, LowQualFinSF, GarageArea, WoodDeckSF, OpenPorchSF, EnclosedPorch, threePorch) %>%
+  head()
+```
+
+
+```{r}
+write.csv(as.data.frame(predictors(sale_price_pred_profile)), "features_after_feature_engineering.csv")
 ```
 
 ```{r}
@@ -184,9 +228,16 @@ plot(sale_price_pred_profile, type=c("g", "o"))
 ```
 
 ```{r}
+model <- lm(SalePrice ~ TotalFootage + OverallQual + OverallCond + GrLivAreaFinSF + GarageArea + LotArea + Age + GrLivArea + TotalBsmtSF + GarageCars + TotalBsmtFinSF + BsmtFinSF1 + AgeRemod + AgeGarage + FireplaceQu + ExterQual + BsmtFinType1 + KitchenQual + BsmtFinProp + BsmtToLotAreaProp + MSSubClass + TFProp + GarageFinish + Fireplaces + BsmtQual + BsmtUnfSF + LivToLotAreaProp + OpenPorchSF + CentralAir + BedroomAbvGr +Neighborhood.Edwards +Neighborhood.NAmes +Neighborhood.OldTown +Neighborhood.Gilbert + Neighborhood.CollgCr +Neighborhood.MeadowV +Neighborhood.Crawfor +Neighborhood.NPkVill +Neighborhood.BrDale+Neighborhood.NridgHt+Neighborhood.Somerst
++Neighborhood.NoRidge +Neighborhood.ClearCr +Neighborhood.NWAmes +Neighborhood.SWISU +Neighborhood.SawyerW +Neighborhood.Sawyer+Neighborhood.BrkSide +Neighborhood.Timber +Neighborhood.Veenker +Neighborhood.IDOTRR +Neighborhood.Mitchel +Neighborhood.Blueste +Neighborhood.StoneBr + GarageType.Attchd + GarageType.Detchd + GarageType.CarPort + GarageType.BuiltIn + GarageType.NA +GarageType.Basment, data = train_main[!train_main$Id %in% c(1299,524), ])
+predicted_Sale_price <- predict(model, newdata = train_val)
+sqrt(mean((train_val$SalePrice - predicted_Sale_price)^2))
+```
+
+```{r}
 model <- lm(SalePrice ~ GrLivArea + OverallQual + TotalBsmtSF + FirstFlrSF + BsmtFinSF1 + LotArea + GarageArea + OverallCond + SecondFlrSF + Age + GarageCars + AgeRemod + FireplaceQu + MSSubClass + ExterQual + BsmtFinType1
 +Neighborhood.Edwards +Neighborhood.NAmes +Neighborhood.OldTown +Neighborhood.Gilbert + Neighborhood.CollgCr +Neighborhood.MeadowV +Neighborhood.Crawfor +Neighborhood.NPkVill +Neighborhood.BrDale+Neighborhood.NridgHt+Neighborhood.Somerst
-+Neighborhood.NoRidge +Neighborhood.ClearCr +Neighborhood.NWAmes +Neighborhood.SWISU +Neighborhood.SawyerW +Neighborhood.Sawyer+Neighborhood.BrkSide +Neighborhood.Timber +Neighborhood.Veenker +Neighborhood.IDOTRR +Neighborhood.Mitchel +Neighborhood.Blueste +Neighborhood.StoneBr + GarageType.Attchd +GarageFinish + GarageYrBlt+OpenPorchSF+ KitchenQual + BsmtQual + HeatingQC + CentralAir, data = train_main)
++Neighborhood.NoRidge +Neighborhood.ClearCr +Neighborhood.NWAmes +Neighborhood.SWISU +Neighborhood.SawyerW +Neighborhood.Sawyer+Neighborhood.BrkSide +Neighborhood.Timber +Neighborhood.Veenker +Neighborhood.IDOTRR +Neighborhood.Mitchel +Neighborhood.Blueste +Neighborhood.StoneBr +GarageFinish + GarageYrBlt+OpenPorchSF+ KitchenQual + BsmtQual + HeatingQC + CentralAir + MSZoning.RM + MSZoning.RL + GarageType.Attchd + GarageType.Detchd + GarageType.CarPort + GarageType.BuiltIn + GarageType.NA +GarageType.Basment, data = train_main[!train_main$Id %in% c(1299,524), ])
 predicted_Sale_price <- predict(model, newdata = train_val)
 sqrt(mean((train_val$SalePrice - predicted_Sale_price)^2))
 ```
@@ -195,34 +246,64 @@ sqrt(mean((train_val$SalePrice - predicted_Sale_price)^2))
 plot(model)
 ```
 
+
+```{r}
+mygrid <- data.frame(mtry = c(5, 10, 15, 20,  25, 30, 35, 40, 45, 50, 60, 70, 80, 90, 100, 150, 200, 222))
+cvModel <- train(SalePrice ~ GrLivArea + OverallQual + TotalBsmtSF + FirstFlrSF + BsmtFinSF1 + LotArea + GarageArea + OverallCond + SecondFlrSF + Age + GarageCars + AgeRemod + FireplaceQu + MSSubClass + ExterQual + BsmtFinType1
++Neighborhood.Edwards +Neighborhood.NAmes +Neighborhood.OldTown +Neighborhood.Gilbert + Neighborhood.CollgCr +Neighborhood.MeadowV +Neighborhood.Crawfor +Neighborhood.NPkVill +Neighborhood.BrDale+Neighborhood.NridgHt+Neighborhood.Somerst
++Neighborhood.NoRidge +Neighborhood.ClearCr +Neighborhood.NWAmes +Neighborhood.SWISU +Neighborhood.SawyerW +Neighborhood.Sawyer+Neighborhood.BrkSide +Neighborhood.Timber +Neighborhood.Veenker +Neighborhood.IDOTRR +Neighborhood.Mitchel +Neighborhood.Blueste +Neighborhood.StoneBr +GarageFinish + GarageYrBlt+OpenPorchSF+ KitchenQual + BsmtQual + HeatingQC + CentralAir + MSZoning.RM + MSZoning.RL + GarageType.Attchd + GarageType.Detchd + GarageType.CarPort + GarageType.BuiltIn + GarageType.NA +GarageType.Basment,train_main[!train_main$Id %in% c(1299,524), ],method = "lm", 
+                trControl = trainControl(method = "cv", 
+                                        number = 10, 
+                                        verboseIter = TRUE))
+
+```
+
+```{r}
+cvModel
+```
+
+
+```{r}
+predicted_Sale_price <- predict(model, newdata = train_val)
+sqrt(mean((train_val$SalePrice - predicted_Sale_price)^2))
+```
+
+
+```{r}
+augment(model) %>%
+  select(.rownames, SalePrice, GrLivArea, OverallQual, LotArea, TotalBsmtSF, GarageArea,OverallCond, Age, .resid, .std.resid) %>%
+  arrange(desc(.resid))
+```
+
+```{r}
+augment(model) %>%
+  select(.rownames, SalePrice, .fitted, GrLivArea, OverallQual, LotArea, TotalBsmtSF, GarageArea,OverallCond, Age, .resid, .std.resid) %>%
+  arrange(.resid)
+```
+
+
+
+```{r}
+test %>%
+  filter(GrLivArea > 3000)
+```
+
 ```{r}
 train_main %>%
-  filter(Id %in% c(496, 524, 1299)) %>%
+  filter(Id %in% c(496, 524, 1299, 31, 411)) %>%
   select(Id, LotArea, GrLivArea, BsmtFinSF1, BsmtFinSF2, SalePrice)
 ```
 
 ```{r}
-hist(train$BsmtFinSF1)
+train_main %>%
+  filter(GrLivArea > 4000)
 ```
 
 ```{r}
 test_Sale_price <- predict(model, newdata = test)
 submission <- cbind(test$Id, exp(test_Sale_price))
 colnames(submission) <- c("Id", "SalePrice")
-write.csv(submission, "submission_clean.csv", row.names = F)
-```
-
-```{r}
-submission
-```
-
-```{r}
-head(exp(test_Sale_price))
-```
-
-```{r}
-train %>%
-  select(Id, FullBath, HalfBath, BsmtFullBath, BsmtHalfBath)
+write.csv(submission, "submission_with_feature_engineering.csv", row.names = F)
 ```
 
 ```{r}
@@ -238,13 +319,13 @@ ggplot(analysis, aes(x = exp(train_val$SalePrice), y = exp(predicted_Sale_price)
 analysis<- analysis %>%
   mutate(diff = Actual - Predicted,
          d2 = sqrt(diff ^ 2),
-         ol = ifelse(d2 > 25000, "Y", "N"))
+         ol = ifelse(d2 > 20000, "Y", "N"))
 ```
 
 ```{r}
 analysis <- analysis %>%
   inner_join(train_val, by = "Id") %>%
-  select(-d2, -diff, -Actual, -Predicted, -SalePrice, -Id)
+  dplyr :: select(-d2, -diff, -Actual, -Predicted, -SalePrice, -Id)
 ```
 
 ```{r}
@@ -256,3 +337,181 @@ plot(fit, uniform=TRUE,
   	main="Classification Tree for analysis")
 text(fit, use.n=TRUE, all=TRUE, cex=.8)
 ```
+
+```{r}
+library(MASS)
+```
+
+```{r}
+rlm_model <- rlm(SalePrice ~ TotalFootage + OverallQual + OverallCond + GrLivAreaFinSF + GarageArea + LotArea + Age + GrLivArea + TotalBsmtSF + GarageCars + TotalBsmtFinSF + BsmtFinSF1 + AgeRemod + AgeGarage + FireplaceQu + ExterQual + BsmtFinType1 + KitchenQual + BsmtFinProp + BsmtToLotAreaProp + MSSubClass + TFProp + GarageFinish + Fireplaces + BsmtQual + BsmtUnfSF + LivToLotAreaProp + OpenPorchSF + CentralAir + BedroomAbvGr +Neighborhood.Edwards +Neighborhood.NAmes +Neighborhood.OldTown +Neighborhood.Gilbert + Neighborhood.CollgCr +Neighborhood.MeadowV +Neighborhood.Crawfor +Neighborhood.NPkVill +Neighborhood.BrDale+Neighborhood.NridgHt+Neighborhood.Somerst
++Neighborhood.NoRidge +Neighborhood.ClearCr +Neighborhood.NWAmes +Neighborhood.SWISU +Neighborhood.SawyerW +Neighborhood.Sawyer+Neighborhood.BrkSide +Neighborhood.Timber +Neighborhood.Veenker +Neighborhood.IDOTRR +Neighborhood.Mitchel +Neighborhood.Blueste +Neighborhood.StoneBr + GarageType.Attchd + GarageType.Detchd + GarageType.CarPort + GarageType.BuiltIn + GarageType.NA +GarageType.Basment, data = train_main[!train_main$Id %in% c(1299,524), ])
+predicted_Sale_price <- predict(rlm_model, newdata = train_val)
+sqrt(mean((train_val$SalePrice - predicted_Sale_price)^2))
+```
+
+```{r}
+x = as.matrix(train_main %>% dplyr::select(-SalePrice))
+y = train_main$SalePrice
+```
+
+```{r}
+ridge = glmnet(x = x, y = y, family="gaussian", alpha=0)
+```
+
+```{r}
+plot(ridge)
+```
+
+```{r}
+x_val = as.matrix(train_val %>% dplyr::select(-SalePrice))
+predicted_Sale_price <- predict(ridge, newx = x_val, s = 0.1)
+sqrt(mean((train_val$SalePrice - predicted_Sale_price)^2))
+```
+
+```{r}
+analysis <- data.frame(train_val$Id, exp(train_val$SalePrice) , exp(predicted_Sale_price))
+colnames(analysis) <- c("Id", "Actual", "Predicted")
+ggplot(analysis, aes(x = exp(train_val$SalePrice), y = exp(predicted_Sale_price), label = Id)) +
+  geom_point(color = "red", alpha = 0.2) +
+  geom_text() +
+  geom_abline(intercept = 0)
+```
+
+
+```{r}
+test_Sale_price <- predict(ridge, newx = as.matrix(test), s = 0.1)
+submission <- cbind(test$Id, exp(test_Sale_price))
+colnames(submission) <- c("Id", "SalePrice")
+write.csv(submission, "submission_ridge.csv", row.names = F)
+```
+
+```{r}
+cvLRModel <-
+  train(
+    SalePrice ~ TotalFootage + OverallQual + OverallCond + GrLivAreaFinSF + GarageArea + LotArea + Age + GrLivArea + TotalBsmtSF + GarageCars + TotalBsmtFinSF + BsmtFinSF1 + AgeRemod + AgeGarage + FireplaceQu + ExterQual + BsmtFinType1 + KitchenQual + BsmtFinProp + BsmtToLotAreaProp + MSSubClass + TFProp + GarageFinish + Fireplaces + BsmtQual + BsmtUnfSF + LivToLotAreaProp + OpenPorchSF + CentralAir + BedroomAbvGr +Neighborhood.Edwards +Neighborhood.NAmes +Neighborhood.OldTown +Neighborhood.Gilbert + Neighborhood.CollgCr +Neighborhood.MeadowV +Neighborhood.Crawfor +Neighborhood.NPkVill +Neighborhood.BrDale+Neighborhood.NridgHt+Neighborhood.Somerst
++Neighborhood.NoRidge +Neighborhood.ClearCr +Neighborhood.NWAmes +Neighborhood.SWISU +Neighborhood.SawyerW +Neighborhood.Sawyer+Neighborhood.BrkSide +Neighborhood.Timber +Neighborhood.Veenker +Neighborhood.IDOTRR +Neighborhood.Mitchel +Neighborhood.Blueste +Neighborhood.StoneBr + GarageType.Attchd + GarageType.Detchd + GarageType.CarPort + GarageType.BuiltIn + GarageType.NA +GarageType.Basment ,
+    train_main[!train_main$Id %in% c(1299,524), ] ,
+    tuneGrid = expand.grid(alpha = 0 : 1,
+                          lambda = c(0, 0.0001, 0.001, 0.01, 0.1, 1)),
+    method = "glmnet",
+    trControl = trainControl(
+                          method = "cv",
+                          number = 10,
+                          verboseIter = TRUE
+                          )
+  )
+```
+
+```{r}
+plot(cvLRModel)
+```
+
+```{r}
+cvLRModel$results
+```
+
+```{r}
+predicted_Sale_price <- predict(cvLRModel, train_val)
+sqrt(mean((train_val$SalePrice - predicted_Sale_price)^2))
+```
+
+```{r}
+analysis <- data.frame(train_val$Id, exp(train_val$SalePrice) , exp(predicted_Sale_price))
+colnames(analysis) <- c("Id", "Actual", "Predicted")
+ggplot(analysis, aes(x = exp(train_val$SalePrice), y = exp(predicted_Sale_price), label = Id)) +
+  geom_point(color = "red", alpha = 0.2) +
+  geom_text() +
+  geom_abline(intercept = 0)
+```
+
+```{r}
+test_Sale_price <- predict(cvLRModel, test)
+submission <- cbind(test$Id, exp(test_Sale_price))
+colnames(submission) <- c("Id", "SalePrice")
+write.csv(submission, "submission_glm.csv", row.names = F)
+```
+
+```{r}
+cvLRPPModel <-
+  train(
+    SalePrice ~ TotalFootage + OverallQual + OverallCond + GrLivAreaFinSF + GarageArea + LotArea + Age + GrLivArea + TotalBsmtSF + GarageCars + TotalBsmtFinSF + BsmtFinSF1 + AgeRemod + AgeGarage + FireplaceQu + ExterQual + BsmtFinType1 + KitchenQual + BsmtFinProp + BsmtToLotAreaProp + MSSubClass + TFProp + GarageFinish + Fireplaces + BsmtQual + BsmtUnfSF + LivToLotAreaProp + OpenPorchSF + CentralAir + BedroomAbvGr +Neighborhood.Edwards +Neighborhood.NAmes +Neighborhood.OldTown +Neighborhood.Gilbert + Neighborhood.CollgCr +Neighborhood.MeadowV +Neighborhood.Crawfor +Neighborhood.NPkVill +Neighborhood.BrDale+Neighborhood.NridgHt+Neighborhood.Somerst
++Neighborhood.NoRidge +Neighborhood.ClearCr +Neighborhood.NWAmes +Neighborhood.SWISU +Neighborhood.SawyerW +Neighborhood.Sawyer+Neighborhood.BrkSide +Neighborhood.Timber +Neighborhood.Veenker +Neighborhood.IDOTRR +Neighborhood.Mitchel +Neighborhood.Blueste +Neighborhood.StoneBr + GarageType.Attchd + GarageType.Detchd + GarageType.CarPort + GarageType.BuiltIn + GarageType.NA +GarageType.Basment ,
+    train_main[!train_main$Id %in% c(1299,524), ]  ,
+    tuneGrid = expand.grid(alpha = 0 : 1 ,
+                          lambda = seq(0, 1, length = 100)),
+    preProcess = c("nzv",  "pca"),
+    method = "glmnet",
+    trControl = trainControl(
+                          method = "cv",
+                          number = 10,
+                          verboseIter = TRUE
+                          )
+  )
+```
+
+```{r}
+plot(cvLRPPModel)
+```
+
+```{r}
+cvLRPPModel
+```
+
+```{r}
+predicted_Sale_price <- predict(cvLRPPModel, train_val)
+sqrt(mean((train_val$SalePrice - predicted_Sale_price)^2))
+```
+
+```{r}
+analysis <- data.frame(train_val$Id, exp(train_val$SalePrice) , exp(predicted_Sale_price))
+colnames(analysis) <- c("Id", "Actual", "Predicted")
+ggplot(analysis, aes(x = exp(train_val$SalePrice), y = exp(predicted_Sale_price), label = Id)) +
+  geom_point(color = "red", alpha = 0.2) +
+  geom_text() +
+  geom_abline(intercept = 0)
+```
+
+```{r}
+test_Sale_price <- predict(cvLRPPModel, test)
+submission <- cbind(test$Id, exp(test_Sale_price))
+colnames(submission) <- c("Id", "SalePrice")
+write.csv(submission, "submission_glm_nzv_n_pca.csv", row.names = F)
+```
+
+```{r}
+modelRF <- train(
+  SalePrice ~ TotalFootage + OverallQual + OverallCond + GrLivAreaFinSF + GarageArea + LotArea + Age + GrLivArea + TotalBsmtSF + GarageCars + TotalBsmtFinSF + BsmtFinSF1 + AgeRemod + AgeGarage + FireplaceQu + ExterQual + BsmtFinType1 + KitchenQual + BsmtFinProp + BsmtToLotAreaProp + MSSubClass + TFProp + GarageFinish + Fireplaces + BsmtQual + BsmtUnfSF + LivToLotAreaProp + OpenPorchSF + CentralAir + BedroomAbvGr +Neighborhood.Edwards +Neighborhood.NAmes +Neighborhood.OldTown +Neighborhood.Gilbert + Neighborhood.CollgCr +Neighborhood.MeadowV +Neighborhood.Crawfor +Neighborhood.NPkVill +Neighborhood.BrDale+Neighborhood.NridgHt+Neighborhood.Somerst
++Neighborhood.NoRidge +Neighborhood.ClearCr +Neighborhood.NWAmes +Neighborhood.SWISU +Neighborhood.SawyerW +Neighborhood.Sawyer+Neighborhood.BrkSide +Neighborhood.Timber +Neighborhood.Veenker +Neighborhood.IDOTRR +Neighborhood.Mitchel +Neighborhood.Blueste +Neighborhood.StoneBr + GarageType.Attchd + GarageType.Detchd + GarageType.CarPort + GarageType.BuiltIn + GarageType.NA +GarageType.Basment,
+  tuneGrid = expand.grid(mtry = c(10, 20, 30, 40, 50 )),
+  data = train_main[!train_main$Id %in% c(1299,524), ], method = "rf",
+  trControl = trainControl(method = "cv", number = 5, verboseIter = TRUE)
+)
+
+```
+
+```{r}
+plot(modelRF)
+```
+
+
+```{r}
+predicted_Sale_price <- predict(modelRF, train_val)
+sqrt(mean((train_val$SalePrice - predicted_Sale_price)^2))
+```
+
+```{r}
+analysis <- data.frame(train_val$Id, exp(train_val$SalePrice) , exp(predicted_Sale_price))
+colnames(analysis) <- c("Id", "Actual", "Predicted")
+ggplot(analysis, aes(x = exp(train_val$SalePrice), y = exp(predicted_Sale_price), label = Id)) +
+  geom_point(color = "red", alpha = 0.2) +
+  geom_text() +
+  geom_abline(intercept = 0)
+```
+```{r}
+test_Sale_price <- predict(modelRF, test)
+submission <- cbind(test$Id, exp(test_Sale_price))
+colnames(submission) <- c("Id", "SalePrice")
+write.csv(submission, "submission_rf.csv", row.names = F)
+```
+
+
